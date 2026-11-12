@@ -2,19 +2,22 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { IPC } from '../shared/types'
 import type { RendererApi, WorkspaceApi, CognitionApi } from '../shared/types'
 import type { ImApi } from '../shared/im'
+import type { BenchApi } from '../shared/benchmark'
 import { WORKSPACE_IPC } from '../shared/workspace'
 import { COGNITION_IPC } from '../shared/cognition'
 import { createDailyApi } from './daily'
 import { createImApi } from './im'
+import { createBenchApi } from './benchmark'
 const workspaceApi = Object.fromEntries(Object.entries(WORKSPACE_IPC).map(([name, channel]) => [name, (...args: unknown[]) => ipcRenderer.invoke(channel, ...args)])) as unknown as WorkspaceApi
 const cognitionApi = Object.fromEntries(Object.entries(COGNITION_IPC).map(([name, channel]) => [name, (...args: unknown[]) => ipcRenderer.invoke(channel, ...args)])) as unknown as CognitionApi
 
 /** 白名单 API：渲染进程只能通过这些方法触达主进程 */
-const api: RendererApi & ImApi = {
+const api: RendererApi & ImApi & BenchApi = {
   ...workspaceApi,
   ...cognitionApi,
   ...createDailyApi((channel, ...args) => ipcRenderer.invoke(channel, ...args)),
   ...createImApi((channel, ...args) => ipcRenderer.invoke(channel, ...args)),
+  ...createBenchApi((channel, ...args) => ipcRenderer.invoke(channel, ...args)),
   appInfo: () => ipcRenderer.invoke(IPC.appInfo),
   appOpenExternal: (url) => ipcRenderer.invoke(IPC.appOpenExternal, url),
   settingsGet: () => ipcRenderer.invoke(IPC.settingsGet),

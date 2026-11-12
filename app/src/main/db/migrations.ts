@@ -4,6 +4,7 @@ import { dailyMigrations } from './dailySchema'
 import { cognitionMigrations } from './cognitionSchema'
 import { agentMigrations } from './agentSchema'
 import { imMigrations } from './imSchema'
+import { benchmarkMigrations } from './benchmarkSchema'
 
 export interface Migration {
   version: number
@@ -549,7 +550,9 @@ export const MIGRATIONS: Migration[] = [
         ' WHEN EXISTS (SELECT 1 FROM panel_dirty_content WHERE content_key = NEW.content_key)' +
         ' BEGIN SELECT RAISE(IGNORE); END'
     ]
-  }
+  },
+  // v30 跨校对标库：订阅源、文章、抽取出的活动字段
+  ...benchmarkMigrations
 ]
 
 export function latestSchemaVersion(): number { return MIGRATIONS.at(-1)!.version }

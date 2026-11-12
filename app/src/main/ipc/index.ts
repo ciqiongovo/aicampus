@@ -26,6 +26,8 @@ import { registerImIpc } from './im'
 import { QceRuntime, isLegacyQqPath } from '../services/im/qceRuntime'
 import { IM_IPC } from '../../shared/im'
 import { ImService } from '../services/im/service'
+import { BenchmarkService } from '../services/benchmark/service'
+import { registerBenchIpc } from './benchmark'
 import { chatCompletion } from '../services/ai/analyzer'
 
 /** 按域注册全部 IPC 处理器（后续里程碑在此追加提醒等域） */
@@ -73,6 +75,10 @@ export function registerIpc(
     userDataPath: app.getPath('userData')
   })
   registerImIpc(ipcMain, imService, qceRuntime)
+
+  // 跨校对标库：DB 走 v30 迁移，抓取用隐藏 BrowserWindow（services/benchmark/fetcher）
+  const benchmarkService = new BenchmarkService(db, store)
+  registerBenchIpc(ipcMain, benchmarkService)
 
   // QCE 运行集目录：打开资源管理器 / 手动指定 QQ.exe（两者都要 electron 的 shell 与 dialog）
   ipcMain.handle(IM_IPC.imQceReveal, () => {
