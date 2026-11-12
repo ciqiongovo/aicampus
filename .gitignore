@@ -1,0 +1,32 @@
+# 敏感数据（绝对不能提交）
+repos/
+ref/
+context/
+.workbuddy/
+*.db
+*.db-wal
+*.db-shm
+key_*.txt
+*recovery-codes*
+cookies*.json
+.env
+.env.local
+
+# 依赖与构建产物
+node_modules/
+dist/
+release/
+out/
+build/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+*.tmp
