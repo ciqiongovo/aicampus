@@ -1,0 +1,58 @@
+/* 日程页：周/日时间段表格（TickTick 周视图结构，配色沿用 C 索引的白底细线） */
+
+.sch-shell { display: flex; flex-direction: column; gap: 10px; }
+.sch-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sch-head-left { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.sch-title { font-size: 18px; font-weight: 600; color: var(--text); margin: 0; line-height: 24px; }
+.sch-range { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.sch-head-right { display: flex; align-items: center; gap: 8px; flex: none; }
+.sch-nav { display: inline-flex; align-items: center; gap: 0; }
+
+.sch-cal { border: 1px solid var(--line); border-radius: 2px; background: var(--surface); overflow: hidden; }
+
+/* 表头与网格共用 8px 滚动条补偿；否则表头列会比下方日期列宽出滚动条宽度。 */
+.sch-cal-head { display: flex; box-sizing: border-box; padding-right: var(--sch-scrollbar, 8px); border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 2; }
+.sch-gutter-head { width: 56px; flex: none; border-right: 1px solid var(--line-soft); }
+.sch-dayhead { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px 6px; border: 0; border-right: 1px solid var(--line-soft); background: transparent; cursor: pointer; }
+.sch-dayhead:last-child { border-right: 0; }
+.sch-dayhead:hover { background: var(--surface); }
+.sch-dayhead-name { font-size: 11px; color: var(--text-3); }
+.sch-dayhead-date { font-size: 14px; color: var(--text); line-height: 20px; font-variant-numeric: tabular-nums; }
+.sch-dayhead-today .sch-dayhead-date { background: var(--ink); color: #FFFFFF; border-radius: 2px; padding: 0 6px; }
+.sch-dayhead-today .sch-dayhead-name { color: var(--text); font-weight: 600; }
+
+.sch-allday { display: flex; box-sizing: border-box; padding-right: var(--sch-scrollbar, 8px); border-bottom: 1px solid var(--line); background: var(--surface); }
+.sch-gutter-cell { width: 56px; flex: none; border-right: 1px solid var(--line-soft); font-size: 10px; color: var(--text-3); display: flex; align-items: center; justify-content: flex-end; padding: 2px 6px; }
+.sch-allday-cell { flex: 1; min-width: 0; border-right: 1px solid var(--line-soft); padding: 3px; display: flex; flex-direction: column; gap: 2px; }
+.sch-allday-cell:last-child { border-right: 0; }
+.sch-allday-chip { border: 0; border-left: 2px solid var(--line-strong); border-radius: 2px; font-size: 11px; color: var(--text); text-align: left; padding: 1px 6px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sch-cal-body { display: flex; max-height: calc(100vh - 216px); overflow: auto; scrollbar-gutter: stable; }
+.sch-gutter { width: 56px; flex: none; border-right: 1px solid var(--line-soft); background-color: var(--surface); background-image: repeating-linear-gradient(to bottom, var(--line-soft) 0 1px, transparent 1px var(--sch-hour-h, 46px)); position: sticky; left: 0; z-index: 1; }
+.sch-hour { position: relative; box-sizing: border-box; height: var(--sch-hour-h, 46px); }
+/* 刻度贴着本行上沿放，避免滚动到整点后标签被裁掉半行 */
+.sch-hour span { position: absolute; right: 6px; top: 3px; font-size: 10px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+
+.sch-grid { display: flex; flex: 1; min-width: 0; height: calc(24 * var(--sch-hour-h, 46px)); }
+.sch-day { position: relative; flex: 1; min-width: 0; border-right: 1px solid var(--line-soft); cursor: cell; }
+.sch-day:last-child { border-right: 0; }
+/* 网格线从整点 0px 开始，与事件 top 使用同一套 46px 刻度，不再用 45/46 渐变造成 1px 偏差。 */
+.sch-day::before { content: ''; position: absolute; inset: 0; background-image: repeating-linear-gradient(to bottom, var(--line-soft) 0 1px, transparent 1px var(--sch-hour-h, 46px)); pointer-events: none; }
+.sch-day-today { background: var(--surface); }
+.sch-day:hover { background: var(--surface); }
+
+.sch-now { position: absolute; left: 0; right: 0; height: 1px; background: var(--danger); z-index: 3; }
+.sch-now::before { content: ''; position: absolute; left: 0; top: -2px; width: 5px; height: 5px; border-radius: 50%; background: var(--danger); }
+
+.sch-event { position: absolute; display: flex; flex-direction: column; gap: 1px; align-items: flex-start; text-align: left; border: 0; border-left: 2px solid var(--line-strong); border-radius: 2px; padding: 3px 6px; cursor: pointer; overflow: hidden; transition: filter 120ms ease; }
+.sch-event:hover { filter: brightness(0.97); }
+.sch-event-title { font-size: 11px; line-height: 14px; color: var(--text); font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.sch-event-time { font-size: 10px; line-height: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sch-event-list { font-size: 10px; line-height: 13px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.sch-event-done { opacity: 0.6; }
+.sch-event-done .sch-event-title { text-decoration: line-through; }
+
+@media (max-width: 900px) {
+  .sch-cal-body { max-height: none; }
+  .sch-title { font-size: 16px; }
+}

@@ -1,0 +1,920 @@
+/* 每日热点日报 · C 索引风格（白纸、细线、反白 hover） */
+
+.daily-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 36px 20px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-page button {
+  font-family: inherit;
+}
+
+/* ---------- overline ---------- */
+
+.daily-overline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 9.5px;
+  line-height: 14px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ---------- 标题行 ---------- */
+
+.daily-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 12px;
+}
+
+.daily-title-left {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.daily-h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.daily-sub {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.daily-actions {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex: 0 0 auto;
+}
+
+.daily-stepper {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.daily-step {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease;
+}
+
+.daily-step:not(:disabled):hover {
+  background: var(--surface-2);
+}
+
+.daily-step:disabled {
+  color: var(--text-3);
+  cursor: default;
+  background: transparent;
+}
+
+.daily-page .daily-datepick.ant-picker {
+  width: 96px;
+  height: 28px;
+  padding: 0 4px;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 2px;
+}
+
+.daily-page .daily-datepick.ant-picker:hover {
+  background: var(--surface-2);
+}
+
+.daily-page .daily-datepick.ant-picker-focused {
+  box-shadow: none;
+  background: var(--surface-2);
+}
+
+.daily-page .daily-datepick .ant-picker-input > input {
+  font-size: 13px;
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+}
+
+  height: 26px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 26px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+  background: var(--surface-2);
+}
+
+.daily-page .daily-gen.ant-btn {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 2px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.daily-page .daily-gen.ant-btn:not(:disabled):hover {
+  background: var(--ink) !important;
+  border-color: var(--ink) !important;
+  color: #fff !important;
+}
+
+.daily-page .daily-gen.ant-btn:not(:disabled):active {
+  background: var(--ink) !important;
+  border-color: var(--ink) !important;
+  color: #fff !important;
+}
+
+.daily-page .daily-gen.ant-btn:focus-visible,
+.daily-drawer .daily-btn-dark.ant-btn:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.daily-page .daily-gen.ant-btn:disabled {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text-3);
+}
+
+/* ---------- 状态行 ---------- */
+
+.daily-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-2);
+}
+
+.daily-status-text {
+  color: var(--text-3);
+}
+
+.daily-status-fail {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--danger);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.daily-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--danger);
+  display: inline-block;
+  flex: 0 0 5px;
+}
+
+.daily-status-detail {
+  flex-basis: 100%;
+  padding-left: 11px;
+  color: var(--text-3);
+}
+
+/* ---------- 分隔线与视图切换 ---------- */
+
+.daily-rule {
+  height: 0;
+  margin: 16px 0 20px;
+  border-top: 1px solid var(--ink);
+}
+
+.daily-viewbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.daily-tabs {
+  display: flex;
+  gap: 18px;
+}
+
+.daily-tab {
+  position: relative;
+  padding: 0 0 6px;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.daily-tab:hover {
+  color: var(--text);
+}
+
+.daily-tab.is-on {
+  color: var(--text);
+}
+
+.daily-tab.is-on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.5px;
+  background: var(--ink);
+}
+
+/* ---------- 看板：翻页容器与三列 ---------- */
+
+.daily-pager {
+  position: relative;
+  padding: 0 44px;
+}
+
+.daily-cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  animation: daily-fade 120ms ease;
+}
+
+@keyframes daily-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.daily-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.daily-arrow-prev {
+  left: -2px;
+}
+
+.daily-arrow-next {
+  right: -2px;
+}
+
+.daily-arrow:not(:disabled):hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+
+.daily-arrow:disabled {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--text-3);
+  cursor: default;
+}
+
+.daily-col {
+  min-height: 520px;
+  padding: 0 16px;
+  border-left: 1px solid var(--line);
+}
+
+.daily-col:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.daily-col-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.daily-col-title {
+  font-size: 13.5px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-col-count {
+  flex: 0 0 auto;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--text-3);
+}
+
+.daily-col-body {
+  padding-top: 2px;
+}
+
+/* ---------- 条目行 ---------- */
+
+.daily-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 32px;
+  padding: 0 8px;
+  margin: 0 -8px;
+  font-size: 13px;
+  line-height: 32px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.daily-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-row-ops {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 10px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.daily-row:hover {
+  background: var(--ink);
+  color: #fff;
+}
+
+.daily-row:hover .daily-row-ops {
+  opacity: 1;
+}
+
+.daily-row.is-archived .daily-row-title {
+  color: var(--text-3);
+}
+
+.daily-row:hover.is-archived .daily-row-title {
+  color: #fff;
+}
+
+.daily-op {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.daily-op:hover {
+  text-decoration: underline;
+}
+
+.daily-more {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.daily-more:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* ---------- 底部刻度 ---------- */
+
+.daily-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.daily-ticks {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.daily-tick {
+  width: 16px;
+  height: 3px;
+  padding: 0;
+  border: 0;
+  background: var(--line);
+  cursor: pointer;
+  transition: background 120ms ease, width 120ms ease;
+}
+
+.daily-tick.is-on {
+  width: 24px;
+  background: var(--ink);
+}
+
+.daily-pageno {
+  font-size: 10.5px;
+  line-height: 14px;
+  color: var(--text-3);
+}
+
+/* ---------- 空态 ---------- */
+
+.daily-empty {
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.daily-empty-title {
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--text);
+}
+
+.daily-empty-note {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-3);
+}
+
+/* ---------- 搜索 ---------- */
+
+.daily-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.daily-filter-kw {
+  display: inline-flex;
+  width: 280px;
+}
+
+.daily-page .daily-filter-kw .ant-input-affix-wrapper,
+.daily-page .daily-filter-kw .ant-input {
+  height: 30px;
+  border-radius: 2px;
+  font-size: 13px;
+}
+
+.daily-page .daily-filter-sel {
+  width: 150px;
+}
+
+.daily-page .daily-filter-sel-sm {
+  width: 120px;
+}
+
+.daily-page .daily-filter-sel .ant-select-selector {
+  height: 30px !important;
+  border-radius: 2px !important;
+  font-size: 13px;
+}
+
+.daily-page .daily-filter-sel .ant-select-selection-item {
+  line-height: 28px;
+}
+
+.daily-result-list {
+  border-top: 1px solid var(--line-soft);
+}
+
+.daily-row-search {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.daily-row-src {
+  flex: 0 0 auto;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-3);
+}
+
+.daily-row:hover .daily-row-src {
+  color: #fff;
+}
+
+.daily-none {
+  padding: 28px 0;
+  text-align: center;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-3);
+}
+
+.daily-pager-line {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.daily-page .daily-pager-line .ant-pagination {
+  font-size: 12px;
+}
+
+.daily-page .daily-pager-line .ant-pagination-item,
+.daily-page .daily-pager-line .ant-pagination-prev,
+.daily-page .daily-pager-line .ant-pagination-next {
+  border-radius: 2px;
+}
+
+/* ---------- 历史 ---------- */
+
+.daily-history-list {
+  border-top: 1px solid var(--line-soft);
+}
+
+.daily-row-hist {
+  gap: 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.daily-hist-date {
+  font-size: 13px;
+  line-height: 32px;
+  flex: 0 0 auto;
+}
+
+.daily-hist-week {
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-3);
+  flex: 0 0 auto;
+}
+
+.daily-hist-meta {
+  margin-left: auto;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--text-3);
+  flex: 0 0 auto;
+}
+
+.daily-row-hist:hover .daily-hist-week,
+.daily-row-hist:hover .daily-hist-meta {
+  color: #fff;
+}
+
+.daily-row-hist.is-on {
+  box-shadow: inset 2px 0 0 #111;
+  background: var(--surface-2);
+}
+
+.daily-row-hist.is-on:hover {
+  background: var(--ink);
+}
+
+/* ---------- 页脚 ---------- */
+
+.daily-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 40px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+}
+
+.daily-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.daily-footer-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-size: 10px;
+  line-height: 14px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+
+.daily-footer-link:hover {
+  color: var(--text);
+}
+
+/* ---------- 抽屉通用 ---------- */
+
+.daily-drawer {
+  font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-drawer .daily-drawer-head {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.daily-drawer .ant-drawer-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.daily-drawer .daily-drawer-body {
+  padding: 18px 24px 24px;
+}
+
+.daily-drawer .daily-drawer-foot {
+  padding: 10px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.daily-drawer .ant-input,
+.daily-drawer .ant-select-selector,
+.daily-drawer .ant-btn {
+  border-radius: 2px;
+}
+
+.daily-menu-list {
+  font-size: 12px;
+  padding: 4px;
+  border-radius: 2px;
+}
+
+/* ---------- 详情抽屉 ---------- */
+
+.daily-detail-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.daily-detail {
+  padding-bottom: 2px;
+}
+
+.daily-detail-close {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 16px;
+  cursor: pointer;
+}
+
+.daily-detail-close:hover {
+  color: var(--text);
+}
+
+.daily-detail-title {
+  margin: 12px 0 0;
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.daily-detail-body {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 22px;
+  color: var(--text);
+}
+
+.daily-detail-body p {
+  margin: 0 0 10px;
+}
+
+.daily-detail-body p:last-child {
+  margin-bottom: 0;
+}
+
+.daily-detail-body .daily-detail-empty {
+  color: var(--text-3);
+}
+
+.daily-detail-meta {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--text-3);
+}
+
+.daily-detail-meta > div + div {
+  margin-top: 2px;
+}
+
+.daily-drawer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.daily-drawer-actions .ant-btn {
+  font-size: 12px;
+}
+
+.daily-page .daily-btn-dark.ant-btn,
+.daily-drawer .daily-btn-dark.ant-btn {
+  border-radius: 2px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
+}
+
+.daily-page .daily-btn-dark.ant-btn:not(:disabled):hover,
+.daily-drawer .daily-btn-dark.ant-btn:not(:disabled):hover {
+  background: var(--ink) !important;
+  border-color: var(--ink) !important;
+  color: #fff !important;
+}
+
+.daily-drawer .daily-btn-dark.ant-btn:disabled {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text-3);
+}
+
+/* ---------- 设置抽屉 ---------- */
+
+.daily-settings {
+  display: flex;
+  flex-direction: column;
+}
+
+.daily-section-label {
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.daily-section-gap {
+  margin-top: 28px;
+}
+
+.daily-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text-3);
+}
+
+.daily-sources {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.daily-source-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.daily-drawer .daily-source-label {
+  width: 100px;
+  height: 26px;
+  font-size: 12px;
+}
+
+.daily-drawer .daily-source-endpoint {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  font-size: 12px;
+}
+
+.daily-badge {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  color: var(--text-3);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.daily-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.daily-settings-row .ant-btn {
+  font-size: 12px;
+}
+
+.daily-focus-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 12px;
+  margin-top: 12px;
+}
+
+.daily-focus-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--text);
+}
+
+/* ---------- QQ 信息来源 ---------- */

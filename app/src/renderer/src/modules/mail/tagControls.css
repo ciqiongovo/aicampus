@@ -1,0 +1,110 @@
+/* 邮件工具栏：搜索主导，次要动作收纳，活动条件按需出现。 */
+.mail-list-toolbar { container-type: inline-size; }
+.mail-auto-sync-note { display: flex; align-items: center; gap: 7px; padding: 12px; color: var(--text-3); font-size: 11px; }
+.mail-list-toolbar .mail-scope { justify-content: space-between; gap: 12px; min-height: 22px; }
+.mail-scope-copy { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.mail-scope-copy .mail-scope-title { overflow: hidden; text-overflow: ellipsis; }
+.mail-scope-total { flex-shrink: 0; color: var(--text-3); font-size: 11px; }
+.mail-search-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.mail-list-toolbar .mail-search { flex: 1 1 240px; width: auto; min-width: 120px; height: 36px; padding: 4px 11px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); box-shadow: none; transition: background .15s, border-color .15s; }
+.mail-list-toolbar .mail-search:hover { border-color: var(--line); }
+.mail-list-toolbar .mail-search:focus-within { background: var(--surface); border-color: var(--line); box-shadow: 0 0 0 2px #11111106; }
+.mail-list-toolbar .mail-search .ant-input { font-size: 12px; background: transparent; }
+.mail-search .ant-input-prefix { margin-inline-end: 9px; color: var(--text-3); }
+.mail-search-hint { border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; color: var(--text-3); font: 10px/18px inherit; background: var(--surface); }
+.mail-search-row .mail-tool-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 7px; height: 36px; padding: 0 12px; font-size: 12px; color: var(--text-2); background: var(--surface); border: 1px solid var(--line); border-radius: 5px; box-shadow: none; }
+.mail-search-row .mail-tool-button:hover, .mail-search-row .mail-tool-button[aria-expanded="true"] { background: var(--surface); border-color: var(--line); color: var(--text); }
+.mail-search-row .mail-tool-button.is-active { color: var(--text); background: #f6f6f6; border-color: var(--line); }
+.mail-tool-chevron { color: var(--text-3); font-size: 9px; }
+.mail-tool-count { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 3px; background: var(--line); font-size: 10px; line-height: 1; }
+.mail-sync-group { display: flex; flex: 0 0 auto; margin-left: 4px; }
+.mail-sync-group .ant-btn-primary { height: 36px; font-size: 12px; background: var(--ink); color: #fff; border: 1px solid var(--ink); box-shadow: none; }
+.mail-sync-group .mail-fetch-button { padding: 0 13px; border-radius: 5px 0 0 5px; }
+.mail-sync-group .mail-sync-more { width: 28px; padding: 0; border-left: 1px solid #ffffff30; border-radius: 0 5px 5px 0; }
+.mail-sync-more .anticon { font-size: 9px; }
+.mail-list-toolbar .mail-match-status { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; height: auto; padding: 0; color: var(--text-3); font-size: 11px; }
+.mail-list-toolbar .mail-match-status.ant-btn:hover { color: var(--text); background: transparent; }
+.mail-active-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; padding-top: 2px; }
+.mail-active-filters-label { margin-right: 2px; color: var(--text-3); font-size: 11px; }
+.mail-active-match-mode { color: var(--text-3); font-size: 10px; }
+.mail-shell .mail-active-filters .ant-tag { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; padding: 2px 7px; border-radius: 4px; font-size: 11px; line-height: 18px; color: var(--text-2) !important; background: var(--surface-2) !important; border-color: var(--line) !important; }
+.mail-filter-chip-text { display: inline-block; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.mail-active-filters .ant-tag-close-icon { margin-inline-start: 5px; color: var(--text-3); }
+.mail-list-toolbar .mail-clear-filters { height: 24px; padding: 0 4px; font-size: 11px; color: var(--text-3); }
+.mail-list-toolbar .mail-clear-filters:hover { color: var(--text); }
+
+/* 弹出菜单用轻边框与统一内边距，不堆叠表单式选择器。 */
+.mail-toolbar-popover { max-width: calc(100vw - 24px); }
+.mail-toolbar-popover .ant-popover-inner { padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; box-shadow: 0 8px 28px #00000012, 0 2px 6px #00000005; }
+.mail-tag-menu { width: 300px; max-width: calc(100vw - 26px); }
+.mail-menu-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px 10px; font-size: 12px; font-weight: 600; color: var(--text); }
+.mail-menu-meta { color: var(--text-3); font-size: 11px; font-weight: 400; }
+.mail-tag-menu .mail-tag-menu-search { width: calc(100% - 28px); margin: 0 14px 10px; height: 32px; border-radius: 4px; font-size: 12px; border-color: var(--line); box-shadow: none; }
+.mail-tag-menu-search .ant-input-prefix { color: var(--text-3); margin-inline-end: 7px; }
+.mail-tag-menu .mail-tag-match-mode { display: flex; margin: 0 14px 10px; }
+.mail-tag-match-mode .ant-radio-button-wrapper { flex: 1; height: 28px; padding: 0 6px; font-size: 11px; text-align: center; line-height: 26px; color: var(--text-3); border-color: var(--line); }
+.mail-tag-match-mode .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) { color: var(--text); background: var(--surface-2); border-color: var(--line); box-shadow: none; }
+.mail-tag-match-mode .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled)::before { background: var(--line); }
+.mail-tag-options { max-height: 260px; overflow-y: auto; padding: 0 7px 7px; }
+.mail-tag-options .mail-tag-option { display: flex; align-items: center; width: 100%; margin: 0; padding: 9px 9px; border-radius: 4px; }
+.mail-tag-option:hover, .mail-tag-option.is-selected { background: var(--surface-2); }
+.mail-tag-option > span:last-child { flex: 1; min-width: 0; }
+.mail-tag-option-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mail-tag-option-name, .mail-tag-definition-name { font-size: 12px; color: var(--text); font-weight: 500; overflow-wrap: anywhere; }
+.mail-tag-option-description { display: block; font-size: 11px; line-height: 1.6; color: var(--text-3); }
+.mail-tag-option .mail-tag-option-description { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-tag-menu-footer { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-top: 1px solid var(--line); background: var(--surface); }
+.mail-tag-menu-footer .ant-btn { color: var(--text-2); font-size: 11px; }
+.mail-tag-menu-footer .ant-btn:first-child { color: var(--text); }
+.mail-menu-empty { display: flex; align-items: center; justify-content: center; min-height: 72px; padding: 12px; color: var(--text-3); font-size: 12px; text-align: center; }
+.mail-filter-menu { width: 238px; }
+.mail-filter-menu .mail-filter-option { display: flex; align-items: center; margin: 0 7px; padding: 10px 9px; font-size: 12px; border-radius: 4px; }
+.mail-filter-option:hover { background: var(--surface-2); }
+.mail-filter-option > span:last-child > span { display: inline-flex; align-items: center; gap: 9px; }
+.mail-filter-option .anticon { color: var(--text-3); }
+.mail-filter-menu-footer { padding: 10px 16px; margin-top: 6px; border-top: 1px solid var(--line); color: var(--text-3); font-size: 11px; }
+
+/* 创建/管理职责分开：简短说明替代大块提示，补匹配只在管理页出现。 */
+.mail-tag-dialog .ant-modal-content { padding: 22px 24px; border-radius: 8px; }
+.mail-tag-dialog .ant-modal-title { font-size: 14px; }
+.mail-dialog-title { display: flex; align-items: center; gap: 8px; }
+.mail-dialog-intro { margin: 0 0 20px; color: var(--text-3); font-size: 12px; line-height: 1.7; }
+.mail-field-optional { font-size: 11px; font-weight: 400; color: var(--text-3); margin-left: 4px; }
+.mail-tag-dialog .ant-form-item-label > label { font-size: 12px; }
+.mail-tag-dialog .ant-form-item-extra { font-size: 11px; color: var(--text-3); margin-top: 6px; }
+.mail-tag-dialog .ant-input, .mail-tag-dialog .ant-input-affix-wrapper { font-size: 12px; border-radius: 4px; }
+.mail-tag-permission-note { display: flex; align-items: baseline; gap: 7px; margin-top: 8px; padding: 10px 12px; background: var(--surface); border-radius: 4px; font-size: 11px; color: var(--text-3); line-height: 1.7; }
+.mail-tag-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
+.mail-tag-manage-actions { display: flex; justify-content: space-between; gap: 8px; padding-top: 6px; }
+.mail-tag-catalog { max-height: 340px; overflow-y: auto; }
+.mail-tag-catalog .ant-list-item { padding: 12px 0; }
+.mail-tag-definition { display: flex; flex-direction: column; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.mail-tag-definition .mail-tag-option-description { color: var(--text-3); }
+.mail-tag-delete { color: var(--text-3); font-size: 11px; }
+.mail-tag-delete:not(:disabled):hover { color: var(--danger) !important; }
+.mail-tag-match-warning { padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); color: var(--warning); font-size: 12px; line-height: 1.7; }
+
+.mail-custom-tag-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; max-width: 100%; }
+.mail-shell .mail-custom-tag-badges .ant-tag { margin: 0; max-width: 100%; padding: 0 5px; white-space: normal; overflow-wrap: anywhere; border-radius: 3px; color: var(--text-3) !important; background: var(--surface-2) !important; border-color: var(--line) !important; font-size: 11px; line-height: 18px; font-weight: 400; }
+/* 主题与自定义标签同一行：标签跟在标题后面，标题过长时自身省略，不换行堆到标题下面。 */
+.mail-subject-with-tags { display: flex; flex-direction: row; align-items: center; gap: 6px; min-width: 0; padding: 3px 0; }
+.mail-subject-with-tags > .mail-subject { flex: 0 1 auto; min-width: 0; max-width: 100%; overflow: hidden; }
+.mail-subject-with-tags > .mail-custom-tag-badges { flex: 0 0 auto; flex-wrap: nowrap; max-width: 50%; overflow: hidden; }
+.mail-subject-with-tags > .mail-custom-tag-badges .ant-tag { white-space: nowrap; }
+.mail-custom-tag-detail { display: flex; align-items: baseline; gap: 12px; margin: 12px 0; }
+.mail-custom-tag-detail > .mail-meta-label { flex-shrink: 0; }
+
+@container (max-width: 620px) {
+  .mail-search-row { flex-wrap: wrap; }
+  .mail-list-toolbar .mail-search { flex-basis: 100%; }
+  .mail-sync-group { margin-left: auto; }
+  .mail-search-row .mail-tool-button { flex: 0 0 auto; }
+  .mail-filter-chip-text { max-width: 140px; }
+}
+@container (max-width: 400px) {
+  .mail-scope-copy { gap: 7px; }
+  .mail-search-row { gap: 6px; }
+  .mail-search-row .mail-tool-button { padding-inline: 8px; gap: 5px; }
+  .mail-sync-group .mail-fetch-button { padding-inline: 9px; }
+  .mail-match-status { max-width: 100px; }
+}

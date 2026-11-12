@@ -1,0 +1,53 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": ".test-out",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": false,
+    "sourceMap": false,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src/main/db/**/*.ts",
+    "src/main/types/**/*.d.ts",
+    "src/shared/types.ts",
+    "src/shared/mailTags.ts",
+    "src/main/services/mailTags.ts",
+    "src/shared/daily.ts",
+    "src/main/services/mail/sanitize.ts",
+    "src/shared/im.ts",
+    "src/shared/imTime.ts",
+    "src/main/services/im/**/*.ts",
+    "src/main/services/ai/schema.ts",
+    "src/main/services/ai/pipeline.ts",
+    "src/main/ipc/mail.ts",
+    "src/main/ipc/mailTags.ts",
+    "src/main/ipc/todo.ts",
+    "src/preload/index.ts",
+    "src/main/services/ai/text.ts",
+    "src/main/services/ai/analyzer.ts",
+    "src/main/services/items/service.ts",
+    "src/main/services/jarvis/**/*.ts",
+    "src/main/services/ai/connection.ts",
+    "src/main/services/daily/service.ts",
+    "src/main/services/counterRec/service.ts",
+    "src/main/services/zhihu/**/*.ts",
+    "src/shared/zhihu.ts",
+    "src/shared/todo.ts",
+    "src/shared/panel.ts",
+    "src/main/services/todo/service.ts",
+    "src/main/services/panel/**/*.ts",
+    "src/main/store/settings.ts",
+    "src/main/ipc/panel.ts",
+    "src/main/ipc/materials.ts",
+    "src/shared/panelQuery.ts",
+    "src/renderer/src/modules/keywordCloudLayout.ts"
+  ]
+}

@@ -1,0 +1,199 @@
+.chat-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 28px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.chat-header h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+
+.chat-header p {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chat-check-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 20px;
+}
+
+.chat-check {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  min-width: 0;
+}
+
+.chat-check span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-hints {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: var(--warning);
+  font-size: 12px;
+}
+
+.chat-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.chat-digest pre {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.chat-digest-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chat-search-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-2);
+  font-size: 12px;
+  margin: 10px 0 6px;
+}
+
+.chat-search-result {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.chat-search-item {
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.chat-search-item small {
+  color: var(--text-3);
+}
+
+.chat-session-title {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-session-title small {
+  color: var(--text-3);
+}
+
+.chat-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  word-break: break-word;
+}
+
+.chat-msg.deleted {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.chat-quote {
+  color: var(--text-2);
+  font-size: 12px;
+  border-left: 2px solid var(--line);
+  padding-left: 6px;
+}
+
+.chat-drawer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.chat-muted {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.chat-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border-radius: 8px;
+}
+
+.chat-insight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.chat-insight small {
+  color: var(--warning);
+}
+
+.chat-load-more {
+  display: flex;
+  justify-content: center;
+  padding-top: 10px;
+}
+
+.chat-token {
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .chat-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 嵌在「设置 → 聊天记录」里时去掉独立页面的版心与留白 */
+.set-chat .chat-page { max-width: none; margin: 0; padding: 0; }
+.set-chat .chat-header h1 { font-size: 18px; }
+
+.chat-sources { margin-top: 12px; }
+.chat-source-title { font-size: 13px; }

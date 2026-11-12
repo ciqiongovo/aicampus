@@ -1,0 +1,334 @@
+/* ============================================================
+   InfoAgent 外壳与通用组件样式（C 索引风格）
+   白底 / 黑字 / 直角 / 细分隔线 / 无阴影 / 密排
+   ============================================================ */
+
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 滚动条：8px 细条，直角，灰滑块 */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: var(--line); }
+*::-webkit-scrollbar-thumb:hover { background: var(--line); }
+*::-webkit-scrollbar-corner { background: transparent; }
+
+/* ---------- 外壳：Sider / 品牌区 ---------- */
+.app-sider { background: var(--surface) !important; }
+.app-sider .ant-layout-sider-children { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+.app-logo {
+  display: flex; align-items: center; gap: 10px;
+  height: 56px; flex: 0 0 56px; padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+}
+.app-logo-icon { width: 20px; height: 20px; flex: 0 0 20px; object-fit: contain; filter: grayscale(1); opacity: .9; }
+.app-logo-text { min-width: 0; }
+.app-logo-title { font-size: 11px; font-weight: 600; letter-spacing: .22em; line-height: 1.35; color: var(--text); }
+.app-logo-sub { font-size: 10px; color: var(--text-3); letter-spacing: .06em; line-height: 1.4; white-space: nowrap; }
+
+/* 导航显隐/固定：降级为纯文字图标 */
+.app-nav-controls {
+  display: flex; gap: 2px; justify-content: flex-end;
+  padding: 4px 8px; border-bottom: 1px solid var(--line-soft);
+}
+.app-nav-controls .ant-btn {
+  height: 24px; min-width: 24px; padding: 0 4px;
+  border: none; background: transparent; box-shadow: none;
+  color: var(--text-3); font-size: 12px;
+}
+.app-nav-controls .ant-btn:hover { background: var(--surface) !important; color: var(--text) !important; }
+.app-nav-btn-active { color: var(--text) !important; }
+
+/* 导航菜单：13px 密排，选中黑字 + 左侧 2px 黑条 */
+.app-sider .ant-menu {
+  flex: 1 1 auto; overflow-x: hidden; overflow-y: auto;
+  padding: 4px 0; background: var(--surface);
+  border-inline-end: 0 !important; border-radius: 0;
+}
+.app-sider .ant-menu-item,
+.app-sider .ant-menu-submenu-title {
+  position: relative;
+  margin-inline: 0 !important; margin-block: 0 !important;
+  width: 100% !important; border-radius: 0 !important;
+  padding-inline: 16px 12px !important;
+  height: 34px; line-height: 34px;
+  font-size: 13px; color: var(--text-2);
+  transition: background 120ms ease, color 120ms ease;
+}
+.app-sider .ant-menu-item .anticon,
+.app-sider .ant-menu-submenu-title .anticon { font-size: 14px; color: var(--text-3); }
+.app-sider .ant-menu-title-content { font-size: 13px; }
+.app-sider .ant-menu-item:hover,
+.app-sider .ant-menu-submenu-title:hover { background: var(--surface) !important; color: var(--text) !important; }
+.app-sider .ant-menu-item:hover .anticon,
+.app-sider .ant-menu-submenu-title:hover .anticon { color: var(--text); }
+.app-sider .ant-menu-item-selected { background: var(--surface-2) !important; color: var(--text) !important; font-weight: 500; }
+.app-sider .ant-menu-item-selected .anticon { color: var(--text); }
+.app-sider .ant-menu-item-selected::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: var(--ink);
+}
+.app-sider .ant-menu-sub .ant-menu-item,
+.app-sider .ant-menu-sub .ant-menu-submenu-title { padding-inline-start: 30px !important; }
+.app-sider .ant-menu-item .ant-tag {
+  margin-inline-start: 2px; padding: 0 4px;
+  font-size: 10px; line-height: 15px; border-radius: 0;
+  background: var(--surface-2); border-color: var(--line); color: var(--text-3);
+}
+
+.app-sider-resizer { flex: 0 0 4px; cursor: col-resize; background: transparent; }
+.app-sider-resizer:hover { background: var(--line); }
+.app-nav-floating {
+  position: absolute !important; inset: 48px auto 0 0; z-index: 1100;
+  overflow: auto; box-shadow: none; border-right: 1px solid var(--line);
+}
+
+/* ---------- 外壳：Header / Content ---------- */
+.app-header,
+.app-header.ant-layout-header {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 48px; line-height: 48px; padding: 0 22px;
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  font-size: 12px; color: var(--text-2);
+}
+.app-header .ant-space { font-size: 12px; }
+.app-header .ant-badge-status-text { margin-inline-start: 6px; font-size: 12px; color: var(--text-2); }
+.app-header .ant-badge-status-dot { width: 6px; height: 6px; }
+.app-header .ant-typography { font-size: 11px; color: var(--text-3); }
+.app-header .ant-btn {
+  height: 28px; padding: 0 6px;
+  border: none; background: transparent; box-shadow: none; color: var(--text-2);
+}
+.app-header .ant-btn:hover { background: var(--surface-2) !important; color: var(--text) !important; }
+.app-header .anticon { font-size: 14px; }
+
+.app-content,
+.app-content.ant-layout-content { padding: 18px 22px; overflow: auto; min-width: 0; background: var(--surface); }
+.app-module { min-width: 0; }
+.app-module[hidden] { display: none !important; }
+
+/* 未启用模块的占位页：居中 overline + 一行说明 */
+.app-placeholder {
+  height: calc(100vh - 120px); min-height: 240px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+}
+.app-placeholder-overline {
+  font-size: 10px; line-height: 14px; font-weight: 500;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--text-3);
+}
+.app-placeholder-text { font-size: 13px; color: var(--text-2); }
+
+@media (max-width: 760px) {
+  .app-header { padding: 0 12px; }
+  .app-content { padding: 12px; }
+  .app-logo { padding: 0 12px; }
+}
+
+/* ============================================================
+   antd 通用覆盖（只写全局，不逐页复制）
+   ============================================================ */
+.ant-layout { background: var(--surface); }
+.ant-card { box-shadow: none; }
+.ant-card > .ant-card-head { min-height: 0; padding: 0 16px; border-bottom: 1px solid var(--line-soft); }
+.ant-card > .ant-card-head .ant-card-head-title { padding: 12px 0; font-size: 13px; font-weight: 600; color: var(--text); }
+.ant-card > .ant-card-head .ant-card-extra { font-size: 12px; color: var(--text-3); }
+.ant-card > .ant-card-body { padding: 12px 16px; }
+.ant-card-bordered { border-color: var(--line); }
+
+.ant-btn-primary:not(:disabled):hover,
+.ant-btn-primary:not(:disabled):focus-visible { background: var(--ink) !important; border-color: var(--ink) !important; }
+.ant-btn-primary:not(:disabled):active { background: var(--ink) !important; border-color: var(--ink) !important; }
+.ant-btn-default:not(:disabled):hover { border-color: var(--ink) !important; color: var(--text) !important; }
+.ant-btn-text:not(:disabled):hover { background: var(--surface-2) !important; color: var(--text) !important; }
+
+.ant-table-thead > tr > th { background: var(--surface); color: var(--text-2); font-weight: 500; }
+.ant-table-thead > tr > th::before { display: none !important; }
+.ant-table-tbody > tr > td { border-bottom: 1px solid var(--line-soft); }
+.ant-table-tbody > tr:last-child > td { border-bottom: none; }
+
+.ant-tag { border-radius: 2px; }
+.ant-tabs .ant-tabs-tab { font-size: 13px; }
+.ant-tabs-top > .ant-tabs-nav::before { border-bottom-color: var(--line); }
+
+.ant-empty-description { color: var(--text-3); font-size: 12px; }
+.ant-empty-image { opacity: .5; filter: grayscale(1); }
+.ant-spin-dot-item { background-color: var(--ink) !important; }
+
+.ant-pagination-item-active,
+.ant-pagination-item-active:hover { background: var(--ink); border-color: var(--ink); }
+.ant-pagination-item-active,
+.ant-pagination-item-active a,
+.ant-pagination-item-active:hover,
+.ant-pagination-item-active:hover a { color: #FFFFFF !important; }
+
+.ant-modal .ant-modal-header { margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+.ant-modal .ant-modal-title { font-size: 14px; font-weight: 600; }
+.ant-drawer .ant-drawer-header { padding: 12px 16px; border-bottom: 1px solid var(--line-soft); }
+.ant-drawer .ant-drawer-title { font-size: 13px; font-weight: 600; }
+.ant-drawer .ant-drawer-footer { border-top: 1px solid var(--line-soft); }
+
+.ant-alert { border-radius: 2px; }
+.ant-divider { border-color: var(--line); }
+.ant-descriptions .ant-descriptions-item-label { color: var(--text-3); }
+
+/* ============================================================
+   邮件（只覆盖视觉，结构/类名不动）
+   依赖：.mail-shell 高度 = 100vh - Header 48 - Content padding 18*2
+   ============================================================ */
+.mail-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 12px; }
+.mail-muted { color: var(--text-3); font-size: 11px; }
+.mail-dot { display: inline-block; width: 5px; height: 5px; background: transparent; }
+.mail-dot-on { background: var(--ink); }
+.mail-subject { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.mail-subject-unread { font-weight: 600; color: var(--text); }
+.mail-clip { color: var(--text-3); }
+.mail-row { cursor: pointer; }
+
+.mail-shell {
+  display: flex; gap: 0; height: calc(100vh - 86px); min-height: 460px;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 2px; overflow: hidden;
+}
+
+/* 文件夹树 */
+.mail-folders {
+  width: 224px; flex: 0 0 auto; display: flex; flex-direction: column;
+  border: 0; border-right: 1px solid var(--line); border-radius: 0; background: var(--surface); overflow: hidden;
+}
+.mail-folders-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  padding: 8px 12px; border-bottom: 1px solid var(--line-soft); background: var(--surface);
+  font-size: 11px; font-weight: 600; letter-spacing: .12em; color: var(--text-2);
+}
+.mail-folders-head .mail-muted { font-weight: 400; letter-spacing: 0; }
+.mail-account-link { color: var(--text-2); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.mail-account-link:hover { color: var(--text); }
+.mail-tree { flex: 1; overflow: auto; padding: 4px 0; }
+.mail-tree-row {
+  display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+  cursor: pointer; font-size: 13px; color: var(--text-2);
+  border-left: 2px solid transparent; user-select: none;
+}
+.mail-tree-row:hover { background: var(--surface); color: var(--text); }
+.mail-tree-row-active { background: var(--surface-2); border-left-color: var(--ink); color: var(--text); font-weight: 500; }
+.mail-tree-row-indent { padding-left: 24px; }
+.mail-tree-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-tree-count { min-width: 20px; text-align: right; font-size: 11px; color: var(--text-2); }
+.mail-tree-count-dim { color: var(--text-3); }
+.mail-tree-account { margin-top: 2px; }
+.mail-tree-account-head {
+  display: flex; align-items: center; gap: 6px; padding: 6px 12px 2px;
+  font-size: 11px; color: var(--text-3); cursor: default;
+}
+.mail-tree-account-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-2); }
+.mail-tree-error { color: var(--danger); }
+.mail-tree-spin { color: var(--text); }
+.mail-tree-account-foot { padding: 2px 12px 6px 26px; font-size: 11px; color: var(--text-3); }
+.mail-folders-foot { padding: 8px; border-top: 1px solid var(--line-soft); background: var(--surface); }
+
+.mail-folders-resizer { flex: 0 0 5px; margin-left: -1px; cursor: col-resize; }
+.mail-folders-resizer:hover { background: var(--line); }
+
+/* 列表 */
+.mail-list-pane {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  border: 0; border-radius: 0; background: var(--surface); overflow: hidden;
+}
+.mail-list-toolbar {
+  display: flex; flex-direction: column; gap: 12px; padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.mail-scope { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.mail-scope-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.mail-list-scroll { flex: 1; overflow: auto; }
+.mail-list-foot { display: flex; justify-content: flex-end; padding: 6px 12px; border-top: 1px solid var(--line); }
+
+/* 搜索、标签与筛选交互样式独立维护于 mail/tagControls.css。 */
+.mail-list-scroll .ant-table-thead > tr > th {
+  height: 30px; padding: 0 10px;
+  font-size: 11px; font-weight: 500; letter-spacing: .12em; color: var(--text-3);
+  background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.mail-list-scroll .ant-table-tbody > tr > td {
+  height: 40px; padding: 0 10px; vertical-align: middle;
+  font-size: 13px; color: var(--text); border-bottom: 1px solid var(--line-soft);
+}
+.mail-list-scroll .ant-table-tbody > tr:last-child > td { border-bottom: none; }
+.mail-list-scroll .ant-table-tbody > tr > td:nth-child(3) { font-weight: 600; }
+.mail-row-active > td { background: var(--surface-2) !important; }
+.mail-row-cursor > td { background: var(--surface) !important; }
+.mail-row:has(.mail-dot-on) > td:first-child { box-shadow: inset 2px 0 0 var(--ink); }
+.mail-row-active > td:first-child { box-shadow: inset 2px 0 0 var(--ink); }
+
+.mail-subject-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit; }
+.mail-star {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; cursor: pointer; color: var(--text-3); font-size: 12px;
+}
+.mail-star:hover { color: var(--text); }
+.mail-star-on { color: var(--text); }
+
+/* 分类等标签：小号灰底直角（覆盖 antd 的彩色 Tag） */
+.mail-shell .ant-tag {
+  margin-inline-end: 0; padding: 0 5px;
+  font-size: 10px; line-height: 16px; border-radius: 0; border-style: solid;
+  color: var(--text-2) !important; background: var(--surface-2) !important; border-color: var(--line) !important;
+}
+
+/* 阅读区 */
+.mail-reading { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--surface); overflow: hidden; }
+.mail-reading-head { display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+.mail-reading-title { flex: 1; font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.5; word-break: break-word; }
+.mail-reading-body {
+  flex: 1; min-height: 0; overflow: hidden; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+  font-size: 14px; line-height: 24px;
+}
+.mail-reading-empty { flex: 1; display: flex; align-items: center; justify-content: center; }
+.mail-meta {
+  display: flex; flex-direction: column; gap: 2px; font-size: 12px; line-height: 18px;
+  flex: 0 0 96px; height: 96px; max-height: 96px; overflow-y: auto;
+}
+.mail-meta-row { display: flex; gap: 8px; }
+.mail-meta-label { flex: 0 0 44px; color: var(--text-3); }
+.mail-meta-value { flex: 1; min-width: 0; word-break: break-word; color: var(--text-2); }
+.mail-meta-row:first-child .mail-meta-value { font-size: 13px; font-weight: 600; color: var(--text); }
+.mail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px; flex: 0 0 auto; }
+.mail-attach-list {
+  display: flex; flex-direction: column; gap: 4px;
+  border-top: 1px solid var(--line-soft); padding-top: 6px; font-size: 12px;
+  flex: 0 1 auto; min-height: 0; max-height: 16vh; overflow-y: auto;
+}
+.mail-attach-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.mail-attach-size { margin-left: auto; color: var(--text-3); white-space: nowrap; }
+.mail-attach-name { display: inline-flex; align-items: center; gap: 6px; word-break: break-all; }
+.mail-body-frame {
+  flex: 1 1 auto; min-height: 240px; width: 100%;
+  border: 1px solid var(--line); border-radius: 0; background: var(--surface);
+}
+.mail-drawer-title { display: inline-block; max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+
+/* AI 分析 / 原文证据 */
+.mail-detail { display: flex; flex-direction: column; gap: 10px; }
+.mail-detail-block {
+  display: flex; flex-direction: column; gap: 6px;
+  flex: 0 1 auto; min-height: 0; max-height: 30vh; overflow-y: auto;
+  font-size: 12px; line-height: 20px;
+}
+.mail-detail-label { font-size: 11px; font-weight: 600; letter-spacing: .12em; color: var(--text); }
+.mail-detail-head { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.mail-evidence-list { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+.mail-evidence-row { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; }
+.mail-evidence-text {
+  flex: 1; min-width: 0; padding: 4px 8px;
+  background: var(--surface-2); border-left: 2px solid var(--ink); border-radius: 0;
+  word-break: break-word; color: var(--text-2);
+}
+/* 外观由 theme.css 的 --bg/--surface/--accent 变量统一驱动 */
+

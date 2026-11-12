@@ -1,0 +1,5 @@
+packages: []
+allowBuilds:
+  electron: true
+  electron-winstaller: false # Squirrel installer not used; delivery targets NSIS and portable
+  esbuild: true

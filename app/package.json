@@ -1,0 +1,102 @@
+{
+  "name": "infoagent",
+  "version": "0.4.0",
+  "description": "InfoAgent — 以邮件为入口的个人信息整理与行动辅助系统",
+  "main": "./out/main/index.js",
+  "private": true,
+  "packageManager": "pnpm@10.15.0",
+  "author": "InfoAgent Team",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json --composite false && tsc --noEmit -p tsconfig.web.json --composite false",
+    "test:db": "tsc -p tsconfig.test.json && node tests/db.test.cjs",
+    "test:mail": "tsc -p tsconfig.test.json && node tests/mail.test.cjs",
+    "test:ai": "tsc -p tsconfig.test.json && node tests/ai.test.cjs",
+    "test": "tsc -p tsconfig.test.json && node tests/db.test.cjs && node tests/mail.test.cjs && node tests/mail-tags.test.cjs && node tests/mail-classify.test.cjs && node tests/custom-mail-tags.test.cjs && node tests/ai.test.cjs && node tests/items.test.cjs && node tests/panel-recommend.test.cjs && node --test tests/panel-inbox.test.cjs tests/batch-management.test.cjs tests/schedule-dedupe.test.cjs tests/panel-renderer-lag.test.cjs && node tests/mail-view.test.cjs && node tests/daily.test.cjs && node tests/counterRec.test.cjs && node tests/zhihu.test.cjs && node --test tests/todo.test.cjs tests/reminder-scheduler.test.cjs tests/mail-security.test.cjs tests/oauth.test.cjs && node --test tests/workspace.test.cjs tests/workspace-security.test.cjs tests/rule-engine.test.cjs tests/agent-model.test.cjs tests/cognition.test.cjs tests/ai-connection.test.cjs tests/db-upgrade.test.cjs && node tests/im.test.cjs && node tests/im-wechat.test.cjs && node tests/im-qce.test.cjs && node tests/im-qce-runtime.test.cjs && node --test tests/keyword-cloud.test.cjs",
+    "test:classify": "tsc -p tsconfig.test.json && node tests/mail-classify.test.cjs",
+    "test:items": "tsc -p tsconfig.test.json && node tests/items.test.cjs",
+    "test:panel": "tsc -p tsconfig.test.json && node tests/panel-recommend.test.cjs && node --test tests/panel-inbox.test.cjs tests/batch-management.test.cjs tests/schedule-dedupe.test.cjs tests/panel-renderer-lag.test.cjs",
+    "test:daily": "tsc -p tsconfig.test.json && node tests/daily.test.cjs",
+    "test:counterrec": "tsc -p tsconfig.test.json && node tests/counterRec.test.cjs",
+    "test:zhihu": "tsc -p tsconfig.test.json && node tests/zhihu.test.cjs",
+    "dist:portable": "electron-vite build && electron-builder --win portable",
+    "publish:exe": "electron-vite build && electron-builder --win portable && cmd /c copy /y release\\InfoAgent-%npm_package_version%-portable.exe InfoAgent.exe",
+    "dist": "electron-vite build && electron-builder --win",
+    "test:workspace": "tsc -p tsconfig.test.json && node --test tests/workspace.test.cjs tests/workspace-security.test.cjs tests/rule-engine.test.cjs tests/agent-model.test.cjs"
+  },
+  "dependencies": {
+    "imapflow": "^2.4.3",
+    "mailparser": "^3.9.39"
+  },
+  "devDependencies": {
+    "@ant-design/icons": "^5.5.1",
+    "@types/node": "^24.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "antd": "^5.20.0",
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^3.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0"
+  },
+  "build": {
+    "appId": "com.infoagent.desktop",
+    "productName": "InfoAgent",
+    "directories": {
+      "output": "release",
+      "buildResources": "resources"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources",
+        "to": "resources"
+      }
+    ],
+    "asar": true,
+    "npmRebuild": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "InfoAgent",
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "InfoAgent-${version}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "InfoAgent-${version}-portable.${ext}"
+    }
+  }
+}

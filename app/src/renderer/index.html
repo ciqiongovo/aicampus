@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>InfoAgent</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      html,
+      body,
+      #root {
+        height: 100%;
+        margin: 0;
+        background: #f7f6f3;
+      }
+
+      /* 静态启动壳层：React 尚未挂载时先给出应用骨架，避免 Windows 首帧纯白。 */
+      #boot-shell {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        grid-template-columns: 200px minmax(0, 1fr);
+        overflow: hidden;
+        color: #111;
+        background: #f7f6f3;
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+          'Microsoft YaHei', sans-serif;
+      }
+
+      #root:not(:empty) + #boot-shell {
+        display: none;
+      }
+
+      .boot-side {
+        padding: 18px 14px;
+        border-right: 1px solid #ededed;
+        background: #fbfaf8;
+      }
+
+      .boot-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 34px;
+        padding: 0 6px;
+      }
+
+      .boot-brand-mark {
+        width: 26px;
+        height: 26px;
+        border: 2px solid #111;
+        border-radius: 50%;
+        box-sizing: border-box;
+      }
+
+      .boot-brand-copy {
+        display: grid;
+        gap: 4px;
+      }
+
+      .boot-brand-title {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+      }
+
+      .boot-brand-sub {
+        width: 88px;
+        height: 5px;
+        background: #e3e1dc;
+      }
+
+      .boot-nav {
+        display: grid;
+        gap: 4px;
+        margin-top: 38px;
+      }
+
+      .boot-nav-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        height: 34px;
+        padding: 0 8px;
+      }
+
+      .boot-nav-dot {
+        width: 7px;
+        height: 7px;
+        background: #d4d1cb;
+      }
+
+      .boot-nav-line {
+        height: 6px;
+        background: #dddad4;
+      }
+
+      .boot-nav-row:first-child .boot-nav-line {
+        width: 34px;
+        background: #b9b6b0;
+      }
+
+      .boot-nav-row:nth-child(2) .boot-nav-line {
+        width: 28px;
+      }
+
+      .boot-nav-row:nth-child(3) .boot-nav-line {
+        width: 40px;
+      }
+
+      .boot-nav-row:nth-child(4) .boot-nav-line {
+        width: 34px;
+      }
+
+      .boot-nav-row:nth-child(5) .boot-nav-line {
+        width: 30px;
+      }
+
+      .boot-main {
+        display: grid;
+        grid-template-rows: 56px minmax(0, 1fr);
+        min-width: 0;
+      }
+
+      .boot-top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 28px;
+        border-bottom: 1px solid #ededed;
+      }
+
+      .boot-status-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #8ea58e;
+      }
+
+      .boot-top-line {
+        width: 140px;
+        height: 6px;
+        background: #e2dfd9;
+      }
+
+      .boot-top-spacer {
+        flex: 1;
+      }
+
+      .boot-top-pill {
+        width: 44px;
+        height: 22px;
+        border: 1px solid #e1ded8;
+      }
+
+      .boot-content {
+        width: min(980px, calc(100% - 56px));
+        margin: 0 auto;
+        padding: 28px 0 40px;
+      }
+
+      .boot-heading {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid #ededed;
+      }
+
+      .boot-heading-line {
+        width: 46px;
+        height: 8px;
+        background: #c9c6c0;
+      }
+
+      .boot-heading-line.short {
+        width: 30px;
+        background: #ddd9d3;
+      }
+
+      .boot-heading-spacer {
+        flex: 1;
+      }
+
+      .boot-action {
+        width: 62px;
+        height: 26px;
+        background: #e5e2dc;
+      }
+
+      .boot-list {
+        display: grid;
+        gap: 0;
+        margin-top: 24px;
+      }
+
+      .boot-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 132px;
+        gap: 28px;
+        padding: 20px 0;
+        border-bottom: 1px solid #f0eeea;
+      }
+
+      .boot-row-copy {
+        display: grid;
+        gap: 10px;
+      }
+
+      .boot-row-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .boot-row-tag {
+        width: 54px;
+        height: 6px;
+        background: #c9c6c0;
+      }
+
+      .boot-row-time {
+        width: 82px;
+        height: 5px;
+        background: #e4e1db;
+      }
+
+      .boot-row-title {
+        width: min(520px, 82%);
+        height: 12px;
+        background: #c9c6c0;
+      }
+
+      .boot-row-line {
+        width: min(620px, 94%);
+        height: 6px;
+        background: #e6e3dd;
+      }
+
+      .boot-row-line.second {
+        width: min(460px, 72%);
+      }
+
+      .boot-row-action {
+        align-self: center;
+        display: grid;
+        gap: 8px;
+        justify-items: end;
+      }
+
+      .boot-row-action-line {
+        width: 48px;
+        height: 5px;
+        background: #e4e1db;
+      }
+
+      .boot-row-button {
+        width: 108px;
+        height: 26px;
+        background: #dedbd5;
+      }
+
+      @media (max-width: 760px) {
+        #boot-shell {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .boot-side {
+          display: none;
+        }
+
+        .boot-content {
+          width: calc(100% - 40px);
+        }
+
+        .boot-row {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .boot-row-action {
+          justify-items: start;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #boot-shell * {
+          animation: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="boot-shell" aria-hidden="true">
+      <aside class="boot-side">
+        <div class="boot-brand">
+          <span class="boot-brand-mark"></span>
+          <div class="boot-brand-copy">
+            <span class="boot-brand-title">INFOAGENT</span>
+            <span class="boot-brand-sub"></span>
+          </div>
+        </div>
+        <div class="boot-nav">
+          <div class="boot-nav-row"><span class="boot-nav-dot"></span><span class="boot-nav-line"></span></div>
+          <div class="boot-nav-row"><span class="boot-nav-dot"></span><span class="boot-nav-line"></span></div>
+          <div class="boot-nav-row"><span class="boot-nav-dot"></span><span class="boot-nav-line"></span></div>
+          <div class="boot-nav-row"><span class="boot-nav-dot"></span><span class="boot-nav-line"></span></div>
+          <div class="boot-nav-row"><span class="boot-nav-dot"></span><span class="boot-nav-line"></span></div>
+        </div>
+      </aside>
+      <main class="boot-main">
+        <header class="boot-top">
+          <span class="boot-status-dot"></span>
+          <span class="boot-top-line"></span>
+          <span class="boot-top-spacer"></span>
+          <span class="boot-top-pill"></span>
+        </header>
+        <section class="boot-content">
+          <div class="boot-heading">
+            <span class="boot-heading-line"></span>
+            <span class="boot-heading-line short"></span>
+            <span class="boot-heading-spacer"></span>
+            <span class="boot-action"></span>
+          </div>
+          <div class="boot-list">
+            <div class="boot-row">
+              <div class="boot-row-copy">
+                <div class="boot-row-meta"><span class="boot-row-tag"></span><span class="boot-row-time"></span></div>
+                <span class="boot-row-title"></span>
+                <span class="boot-row-line"></span>
+                <span class="boot-row-line second"></span>
+              </div>
+              <div class="boot-row-action"><span class="boot-row-action-line"></span><span class="boot-row-button"></span></div>
+            </div>
+            <div class="boot-row">
+              <div class="boot-row-copy">
+                <div class="boot-row-meta"><span class="boot-row-tag"></span><span class="boot-row-time"></span></div>
+                <span class="boot-row-title"></span>
+                <span class="boot-row-line"></span>
+                <span class="boot-row-line second"></span>
+              </div>
+              <div class="boot-row-action"><span class="boot-row-action-line"></span><span class="boot-row-button"></span></div>
+            </div>
+            <div class="boot-row">
+              <div class="boot-row-copy">
+                <div class="boot-row-meta"><span class="boot-row-tag"></span><span class="boot-row-time"></span></div>
+                <span class="boot-row-title"></span>
+                <span class="boot-row-line"></span>
+                <span class="boot-row-line second"></span>
+              </div>
+              <div class="boot-row-action"><span class="boot-row-action-line"></span><span class="boot-row-button"></span></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

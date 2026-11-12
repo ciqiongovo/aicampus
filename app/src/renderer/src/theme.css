@@ -1,0 +1,266 @@
+/* ============================================================
+   全局外观：多巴胺 / 经典 × 浅色 / 深色
+   所有业务 CSS 的灰阶已改用这里的语义变量；本文件只做变量、
+   外壳与 antd 的跨页覆盖。
+   ============================================================ */
+
+:root {
+  --sch-hour-h: 46px;
+  --sch-scrollbar: 8px;
+}
+
+/* 默认（JS 尚未写入 data-* 时）也按多巴胺浅色渲染，避免首帧闪白 */
+:root,
+html[data-palette='vivid'][data-theme='light'] {
+  --bg: #fff6ee;
+  --surface: #fffdfb;
+  --surface-2: #fff2f7;
+  --surface-3: #f4eeff;
+  --text: #241a33;
+  --text-2: #5f4e75;
+  --text-3: #9786ab;
+  --line: #f0dfec;
+  --line-soft: #f8ecf5;
+  --line-strong: #e2cfe9;
+  --ink: #6d4aff;
+  --on-ink: #ffffff;
+  --accent: #6d4aff;
+  --accent-2: #ff5c8a;
+  --accent-3: #ffc24b;
+  --accent-4: #28c99a;
+  --accent-5: #4d9bff;
+  --danger: #d1435b;
+  --success: #128a63;
+  --warning: #b26a00;
+  --shadow: 0 8px 28px rgba(89, 54, 140, 0.1);
+  --header-bg: linear-gradient(105deg, #ffe8f1 0%, #fff3d9 34%, #e8fbf2 66%, #e9efff 100%);
+  --page-glow:
+    radial-gradient(880px 400px at 2% -8%, rgba(255, 219, 235, 0.75), transparent 62%),
+    radial-gradient(760px 360px at 100% -4%, rgba(219, 232, 255, 0.68), transparent 58%);
+}
+
+html[data-palette='classic'][data-theme='light'] {
+  --bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #fafafa;
+  --surface-3: #f5f5f5;
+  --text: #111111;
+  --text-2: #5c5c5c;
+  --text-3: #9a9a9a;
+  --line: #efefef;
+  --line-soft: #f5f5f5;
+  --line-strong: #e0e0e0;
+  --ink: #111111;
+  --on-ink: #ffffff;
+  --accent: #111111;
+  --accent-2: #111111;
+  --accent-3: #111111;
+  --accent-4: #111111;
+  --accent-5: #111111;
+  --danger: #b4372f;
+  --success: #2f7d46;
+  --warning: #8a6a16;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  --header-bg: #ffffff;
+  --page-glow: none;
+}
+
+/* 经典深色 */
+html[data-theme='dark'] {
+  --bg: #121212;
+  --surface: #1b1b1b;
+  --surface-2: #232323;
+  --surface-3: #2a2a2a;
+  --text: #f2f2f2;
+  --text-2: #bdbdbd;
+  --text-3: #8f8f8f;
+  --line: #333333;
+  --line-soft: #292929;
+  --line-strong: #444444;
+  --ink: #2b2b2b;
+  --on-ink: #ffffff;
+  --accent: #d4d4d4;
+  --accent-2: #d4d4d4;
+  --accent-3: #d4d4d4;
+  --accent-4: #d4d4d4;
+  --accent-5: #d4d4d4;
+  --danger: #ff7b72;
+  --success: #56d364;
+  --warning: #e3b341;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  --header-bg: #1b1b1b;
+  --page-glow: none;
+}
+
+/* 多巴胺深色 */
+html[data-palette='vivid'][data-theme='dark'] {
+  --bg: #14101f;
+  --surface: #1d182a;
+  --surface-2: #241e34;
+  --surface-3: #2c2540;
+  --text: #f7f2ff;
+  --text-2: #c9bcdf;
+  --text-3: #9789ae;
+  --line: #3a3150;
+  --line-soft: #2a233b;
+  --line-strong: #4b4066;
+  --ink: #5b3fd6;
+  --on-ink: #ffffff;
+  --accent: #a78bfa;
+  --accent-2: #ff8fb1;
+  --accent-3: #ffd166;
+  --accent-4: #4ade9f;
+  --accent-5: #8fb3ff;
+  --danger: #ff8aa0;
+  --success: #4ade9f;
+  --warning: #ffc24b;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --header-bg: linear-gradient(105deg, #2a1b36 0%, #2b2033 38%, #1c2c33 68%, #1d2440 100%);
+  --page-glow:
+    radial-gradient(860px 420px at 0% -10%, rgba(91, 63, 214, 0.22), transparent 62%),
+    radial-gradient(720px 360px at 100% -6%, rgba(255, 92, 138, 0.14), transparent 58%);
+}
+
+html,
+body,
+#root {
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  background: var(--bg);
+}
+
+.ant-layout,
+.ant-layout-content {
+  background: var(--bg);
+}
+
+.app-content,
+.app-content.ant-layout-content {
+  background: var(--page-glow), var(--bg);
+  background-attachment: fixed;
+}
+
+.app-sider {
+  background: var(--surface) !important;
+}
+
+.app-header,
+.app-header.ant-layout-header {
+  background: var(--header-bg) !important;
+  border-bottom-color: var(--line) !important;
+}
+
+.app-sider .ant-menu {
+  background: transparent;
+}
+
+.app-sider .ant-menu-item-selected::before {
+  background: var(--ink);
+}
+
+/* 滚动条在深色下也要有对比 */
+html[data-theme='dark'] *::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+}
+
+html[data-theme='dark'] *::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+}
+
+/* 白色文字只属于深色底或彩色底；主题切换时保持可读 */
+html[data-theme='dark'] .app-logo-icon {
+  filter: none;
+  opacity: 0.95;
+}
+
+html[data-theme='dark'] .ant-empty-image {
+  opacity: 0.7;
+}
+
+html[data-theme='dark'] .ant-card,
+html[data-theme='dark'] .ant-modal-content,
+html[data-theme='dark'] .ant-drawer-content,
+html[data-theme='dark'] .ant-popover-inner,
+html[data-theme='dark'] .ant-dropdown-menu,
+html[data-theme='dark'] .ant-select-dropdown {
+  box-shadow: var(--shadow);
+}
+
+/* ---------- 多巴胺强调：只加在结构骨架上，不逐个页面复制 ---------- */
+html[data-palette='vivid'] .app-logo-icon {
+  filter: none;
+  opacity: 1;
+}
+
+html[data-palette='vivid'] .app-logo-title {
+  background: linear-gradient(100deg, var(--accent), var(--accent-2) 55%, var(--accent-3));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+html[data-palette='vivid'] .app-sider .ant-menu-item-selected {
+  background: linear-gradient(90deg, rgba(109, 74, 255, 0.14), rgba(255, 92, 138, 0.1)) !important;
+  color: var(--accent) !important;
+}
+
+html[data-palette='vivid'] .app-sider .ant-menu-item-selected .anticon {
+  color: var(--accent);
+}
+
+html[data-palette='vivid'] .app-sider .ant-menu-item-selected::before {
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+}
+
+html[data-palette='vivid'] .ant-tabs-ink-bar {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2)) !important;
+  height: 2px;
+}
+
+html[data-palette='vivid'] .ant-btn-primary:not(:disabled) {
+  background: linear-gradient(100deg, var(--accent), #8b5cf6);
+  border-color: transparent;
+}
+
+html[data-palette='vivid'] .ant-btn-primary:not(:disabled):hover,
+html[data-palette='vivid'] .ant-btn-primary:not(:disabled):focus-visible {
+  background: linear-gradient(100deg, #5b3fd6, #7c4dff) !important;
+  border-color: transparent !important;
+}
+
+/* 禁用态的主按钮沿用主色底，文字要反白才看得见（antd 默认给了浅灰） */
+.ant-btn.ant-btn-primary:disabled,
+.ant-btn.ant-btn-primary.ant-btn-variant-solid:disabled,
+.ant-btn.ant-btn-primary.ant-btn-variant-solid.ant-btn-disabled {
+  color: rgba(255, 255, 255, 0.62) !important;
+  border-color: transparent;
+}
+
+html[data-palette='vivid'] .panel-rail-card,
+html[data-palette='vivid'] .kwp-card-rail {
+  background:
+    linear-gradient(180deg, rgba(109, 74, 255, 0.07), transparent 90px),
+    var(--surface);
+  border-color: var(--line);
+}
+
+html[data-palette='vivid'] .set-tabs .ant-tabs-ink-bar {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+/* 深色下把白底插图的边界收一下 */
+html[data-theme='dark'] .mail-body-frame {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+html[data-theme='dark'] .sch-event {
+  color: var(--text);
+}
+
+html[data-theme='dark'] .ant-alert {
+  border-color: var(--line);
+}

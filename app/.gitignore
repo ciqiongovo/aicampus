@@ -1,0 +1,15 @@
+node_modules/
+out/
+.electron-cache/
+.tmp/
+release/
+dist/
+*.log
+*.tsbuildinfo
+.DS_Store
+.test-out/
+# 运行时与打包产物：由 scripts/prepare-qce.cjs 与 electron-builder 生成，不进 Git
+resources/qce/
+# InfoAgent 便携版的解包运行集（与本工程同名目录，注意别和仓库根的 app/ 混淆）
+/app/
+InfoAgent.exe

@@ -1,0 +1,13 @@
+{
+  "name": "im-connector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "微信 / QQ 聊天记录采集与信息理解（InfoAgent 插件原型，独立可跑）",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node ../../node_modules/typescript/bin/tsc -p tsconfig.json",
+    "cli": "node dist/cli.js",
+    "demo": "node dist/cli.js demo",
+    "test": "npm run build && node tests/normalize.test.cjs && node tests/db.test.cjs && node tests/segment.test.cjs && node tests/qq.test.cjs && node tests/chatlog.test.cjs && node tests/e2e.test.cjs"
+  }
+}

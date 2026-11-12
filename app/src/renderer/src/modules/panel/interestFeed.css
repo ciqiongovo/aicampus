@@ -1,0 +1,261 @@
+/* 面板「知乎」来源：纸面底色 + 细分隔线；推荐/反推荐用 tab 分开。 */
+.interest-feed {
+  margin: 0 0 18px;
+  padding: 14px 16px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+.interest-feed-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.interest-feed-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.interest-feed-kicker {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  padding: 2px 6px;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-size: 11px;
+  letter-spacing: 1px;
+  line-height: 1.4;
+}
+
+.interest-feed-heading h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.interest-feed-heading p {
+  margin: 3px 0 0;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.interest-feed-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.interest-feed-error {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 9%, var(--surface));
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.interest-feed-loading {
+  padding: 18px 2px 14px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.interest-feed-connect,
+.interest-feed-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 2px 10px;
+}
+
+.interest-feed-connect strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.interest-feed-connect span {
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.interest-feed-empty span {
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.interest-feed-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 9px 2px 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.interest-feed-tags > span {
+  margin-right: 2px;
+}
+
+.interest-feed-tags .ant-tag {
+  margin-inline-end: 0;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.interest-feed-board-hint {
+  padding: 10px 2px 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.interest-feed .ant-tabs-nav {
+  margin: 4px 0 0;
+}
+
+.interest-feed .ant-tabs-tab {
+  padding: 9px 2px;
+  font-size: 13px;
+}
+
+.interest-feed .ant-tabs-tab + .ant-tabs-tab {
+  margin-left: 20px;
+}
+
+.interest-feed-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.interest-push {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 2px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.interest-push:last-child {
+  border-bottom: 0;
+}
+
+.interest-push-body {
+  min-width: 0;
+}
+
+.interest-push-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.interest-push-index {
+  flex: 0 0 auto;
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.interest-push-title-row h4 {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.interest-push-title-row .ant-tag {
+  flex: 0 0 auto;
+  margin-inline-end: 0;
+  font-size: 11px;
+}
+
+.interest-push-excerpt {
+  margin: 4px 0 0 24px;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.interest-push-meta {
+  margin: 4px 0 0 24px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+
+.interest-push-reason {
+  margin: 5px 0 0 24px;
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.interest-push-reason.is-counter {
+  color: var(--success);
+}
+
+.interest-push-reason .anticon {
+  margin-right: 4px;
+}
+
+.interest-push-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 290px;
+}
+
+.interest-push-ignored {
+  opacity: 0.62;
+}
+
+.interest-push-ignored .interest-push-title-row h4 {
+  text-decoration: line-through;
+  text-decoration-color: #c9c1b3;
+}
+
+@media (max-width: 900px) {
+  .interest-feed-head,
+  .interest-feed-connect,
+  .interest-feed-empty,
+  .interest-push {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .interest-feed-tools,
+  .interest-push-actions {
+    justify-content: flex-start;
+    max-width: none;
+  }
+
+  .interest-push-excerpt,
+  .interest-push-meta,
+  .interest-push-reason {
+    margin-left: 0;
+  }
+}
