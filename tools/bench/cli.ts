@@ -326,7 +326,7 @@ async function cmdList(args: Args): Promise<void> {
   for (const r of rows) {
     console.log(
       `${String(r.id).padStart(4)} ${(r.school || '—').padEnd(10)} ${(r.kind || '—').padEnd(8)} ` +
-        `${r.weekNo ? `第${r.weekNo}周` : '—'} ${(r.title || r.url).slice(0, 40)}`
+        `${r.weekNo ? `约${r.weekNo}周` : '—'} ${(r.title || r.url).slice(0, 40)}`
     )
   }
   console.log(`共 ${rows.length} 条`)

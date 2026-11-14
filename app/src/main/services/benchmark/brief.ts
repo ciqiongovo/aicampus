@@ -27,11 +27,15 @@ const FIT_TEXT: Record<string, string> = {
  * 这里曾经把「发布时间」当作活动时间的兜底，那是错的：一篇 9 月 26 日发出、
  * 通知 9 月 27 日活动的推文，兜底之后会显示成 9 月 26 日，读者以为是活动日期。
  * 所以活动时间没有就写「原文未写」，发布时间另起一行，标清楚它是什么。
+ *
+ * 周次前面加「约」：它多半是按日期和开学日推出来的，不是原文写的。
+ * 各校校历不同，同一个日期在复旦是第 4 周、在上科大可能第 3 周，
+ * 标成确数会让人拿它当依据。
  */
 function fmtTime(item: BenchBriefItem): string {
   if (!item.startAt) return '原文未写'
   const text = item.startAt.slice(0, 16)
-  return item.weekNo ? `${text}（第 ${item.weekNo} 周）` : text
+  return item.weekNo ? `${text}（约第 ${item.weekNo} 周）` : text
 }
 
 function oneLine(label: string, value: string | null | undefined): string | null {
@@ -108,7 +112,10 @@ export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string 
 
   lines.push('---')
   lines.push('')
-  lines.push('字段说明：时间与周次取自原文；周次按秋季学期 9 月 1 日起算，各校校历不同，仅供参考。')
+  lines.push(
+    '字段说明：时间取自原文；周次为按开学日推算的近似值（各校校历不同），仅供参考。' +
+      '标「待核对」的条目抽取把握不足七成，做决定前请对照原文。'
+  )
   return lines.join('\n')
 }
 

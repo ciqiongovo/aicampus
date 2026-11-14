@@ -257,10 +257,12 @@ function BenchmarkPage(): JSX.Element {
       render: (v: string | null) => shortDate(v)
     },
     {
-      title: '周次',
+      // 周次前面那个「约」不能省：这个数多半是按日期和开学日推出来的，
+      // 不是原文写的。各校校历不同，标成确数会被当成依据。
+      title: '周次（约）',
       dataIndex: 'weekNo',
-      width: 70,
-      render: (v: number | null) => (v ? `第${v}周` : '—')
+      width: 86,
+      render: (v: number | null) => (v ? `约${v}周` : '—')
     },
     { title: '类型', dataIndex: 'kind', width: 110, render: (v: string) => v || '—' },
     {
@@ -435,7 +437,7 @@ function BenchmarkPage(): JSX.Element {
                 <Field label="时间" value={detail.activity.startAt} />
                 <Field
                   label="周次"
-                  value={detail.activity.weekNo ? `第${detail.activity.weekNo}周` : ''}
+                  value={detail.activity.weekNo ? `约第${detail.activity.weekNo}周（按日期推算）` : ''}
                 />
                 <Field label="地点" value={detail.activity.location} />
                 <Field label="对象" value={detail.activity.audience} />
@@ -639,7 +641,7 @@ const COMPARE_FIELDS: { label: string; get: (d: BenchArticleDetail) => string }[
   { label: '公众号', get: (d) => d.sourceName },
   { label: '活动类型', get: (d) => d.activity?.kind ?? '' },
   { label: '时间', get: (d) => (d.activity?.startAt ? d.activity.startAt.slice(0, 16) : '') },
-  { label: '周次', get: (d) => (d.activity?.weekNo ? `第 ${d.activity.weekNo} 周` : '') },
+  { label: '周次（约）', get: (d) => (d.activity?.weekNo ? `约 ${d.activity.weekNo} 周` : '') },
   { label: '地点', get: (d) => d.activity?.location ?? '' },
   { label: '组织方式', get: (d) => d.activity?.orgForm ?? '' },
   { label: '面向', get: (d) => d.activity?.audience ?? '' },
