@@ -130,6 +130,12 @@ export interface AppSettings {
   zhihuRecommendCount: number
   /** 知乎反推荐每天生成条数（1-5） */
   zhihuCounterCount: number
+  /**
+   * 本校条件，供对标库判断「这件事能不能搬过来做」。
+   * 写成一段自由描述而不是几个数字字段，是因为真正卡人的条件往往很具体：
+   * 「体育馆要提前两周申请」「单场预算上限一万」，这些塞不进结构化表单。
+   */
+  benchOurContext: string
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -150,7 +156,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   radarSensitivity: 'standard',
   keywordSensitivity: 'standard',
   zhihuRecommendCount: 3,
-  zhihuCounterCount: 3
+  zhihuCounterCount: 3,
+  benchOurContext:
+    '上海科技大学，本科生每年级约 400-500 人，学生会生活权益部 10 余人；可用场地有体育馆、报告厅、学生活动中心，需提前申请；活动经费有限，单场预算一般不超过一万元；宣传主要靠校内公众号与班级群。'
 }
 
 export type SettingsPatch = Partial<AppSettings>
@@ -187,6 +195,12 @@ export interface SettingsView {
   zhihuRecommendCount: number
   /** 知乎反推荐每天生成条数（1-5） */
   zhihuCounterCount: number
+  /**
+   * 本校条件，供对标库判断「这件事能不能搬过来做」。
+   * 写成一段自由描述而不是几个数字字段，是因为真正卡人的条件往往很具体：
+   * 「体育馆要提前两周申请」「单场预算上限一万」，这些塞不进结构化表单。
+   */
+  benchOurContext: string
 }
 
 // ---------- 邮件服务商注册表 ----------

@@ -78,4 +78,6 @@ export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkSe
   ipcMain.handle(BENCH_IPC.benchStats, () => service.stats())
   ipcMain.handle(BENCH_IPC.benchSchools, () => service.schools())
   ipcMain.handle(BENCH_IPC.benchKinds, () => service.kinds())
+
+  ipcMain.handle(BENCH_IPC.benchBrief, (_e, filter: unknown) => service.brief(asFilter(filter)))
 }

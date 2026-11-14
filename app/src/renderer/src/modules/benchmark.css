@@ -108,3 +108,86 @@
   margin: 0;
   padding-left: 1.4em;
 }
+
+/* 简报正文：等宽字体 + 保留换行，复制粘贴时才不会串行 */
+.bench-brief-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bench-brief-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.bench-brief {
+  margin: 0;
+  padding: 14px 16px;
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  font-family: 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+}
+
+/* 并排对比：横向滚动比压缩列宽更实用，字段名不会挤成两行 */
+.bench-compare-wrap {
+  overflow-x: auto;
+}
+
+.bench-compare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  table-layout: fixed;
+}
+
+.bench-compare th,
+.bench-compare td {
+  border: 1px solid #eee;
+  padding: 8px 10px;
+  vertical-align: top;
+  text-align: left;
+  word-break: break-word;
+}
+
+.bench-compare thead th {
+  background: #fafafa;
+  font-weight: 500;
+}
+
+.bench-compare-key {
+  width: 84px;
+  background: #fafafa;
+  color: #666;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.bench-compare-diff td {
+  background: #fffbe6;
+}
+
+.bench-compare-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bench-compare-school {
+  font-weight: 600;
+}
+
+.bench-compare-title {
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
+}

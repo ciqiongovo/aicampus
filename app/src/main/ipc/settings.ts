@@ -26,7 +26,8 @@ function toView(s: AppSettings): SettingsView {
     radarSensitivity: s.radarSensitivity,
     keywordSensitivity: s.keywordSensitivity,
     zhihuRecommendCount: s.zhihuRecommendCount,
-    zhihuCounterCount: s.zhihuCounterCount
+    zhihuCounterCount: s.zhihuCounterCount,
+    benchOurContext: s.benchOurContext
   }
 }
 

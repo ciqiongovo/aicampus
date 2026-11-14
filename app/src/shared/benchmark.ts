@@ -21,7 +21,8 @@ export const BENCH_IPC = {
   benchExtract: 'bench:extract',
   benchStats: 'bench:stats',
   benchSchools: 'bench:schools',
-  benchKinds: 'bench:kinds'
+  benchKinds: 'bench:kinds',
+  benchBrief: 'bench:brief'
 } as const
 
 // ---------- 枚举 ----------
@@ -153,11 +154,25 @@ export interface BenchImportResult {
 
 export interface BenchFetchResult {
   fetched: number
+  /** 纯图推送：页面正常但正文全在图片里，已归档、不计入失败 */
+  imageOnly: number
   deleted: number
   unreachable: number
+  /**
+   * 是否因为连续撞上微信人机验证而提前收工。
+   * 这个不是「失败了几篇」，而是「再抓下去也没用」——界面要提示用户歇一会儿，
+   * 而不是让他看着一串红色的失败标记反复点。
+   */
+  blocked: boolean
 }
 
 export interface BenchExtractResult {
+  /**
+   * 这次用的是模型还是规则。
+   * 必须回传给界面：规则抽取只认类型、时间、地点，抽不到议程和可迁移性，
+   * 用户得知道手上这批数据是怎么来的，才不会拿它当完整结论。
+   */
+  mode: 'llm' | 'rule'
   /** 判定为活动并抽出字段 */
   activities: number
   /** 判定为非活动，归档 */
@@ -173,6 +188,51 @@ export interface BenchStats {
   deleted: number
   /** 最近一次采集完成时间 */
   lastFetchAt: string | null
+}
+
+// ---------- 简报 ----------
+
+/**
+ * 简报里的一条活动。
+ *
+ * 只放「念得出口」的字段：老师问的是「别的学校毕业季怎么做的」，
+ * 他要的是学校、什么时候、在哪、怎么办的、能不能照做，不是数据库全字段。
+ */
+export interface BenchBriefItem {
+  id: number
+  school: string
+  sourceName: string
+  title: string
+  url: string
+  publishedAt: string | null
+  kind: string
+  /** 举办周次（估算，按秋季 9 月 1 日起算） */
+  weekNo: number | null
+  startAt: string | null
+  location: string
+  orgForm: string
+  audience: string
+  agenda: string[]
+  /** 宣传形式：预热、抽奖、直播这类手段，原文里出现的 */
+  promoChannels: string[]
+  migrationFit: BenchMigrationFit
+  migrationNote: string
+  /** 抽取把握，低于 0.7 的会被标注「待核对」 */
+  confidence: number
+}
+
+export interface BenchBrief {
+  /** 一句话标题，如「近一年迎新晚会对标简报」 */
+  title: string
+  generatedAt: string
+  /** 覆盖的学校数 / 活动数 */
+  schoolCount: number
+  activityCount: number
+  /** 按学校分组的条数，用于概览那一段 */
+  perSchool: { school: string; count: number }[]
+  items: BenchBriefItem[]
+  /** 已经排版好的 Markdown，直接可粘进文档或群聊 */
+  markdown: string
 }
 
 // ---------- 渲染层可见的 API ----------
@@ -196,6 +256,8 @@ export interface BenchApi {
   benchStats(): Promise<BenchStats>
   benchSchools(): Promise<string[]>
   benchKinds(): Promise<string[]>
+  /** 按当前筛选条件生成简报；同条件重复调用结果一致，不做缓存 */
+  benchBrief(filter: BenchArticleFilter): Promise<BenchBrief>
 }
 
 // ---------- 工具 ----------
@@ -223,6 +285,77 @@ export function articleUrlKey(url: string): string | null {
   } catch {
     return null
   }
+}
+
+/**
+ * 上海高校名单与简称。
+ *
+ * 判学校不能只靠「去掉『学生会』三个字」：那只能对付「复旦大学学生会」这一种写法，
+ * 遇上「团聚上大」「社彩同济」「上海交大安泰EMBA」就全落空，
+ * 而真实的公众号名恰恰大量使用简称——学生自己做的号很少规规矩矩写全称。
+ *
+ * 顺序无关，匹配时取命中别名最长的那个，避免「上海大学」被「上海」类前缀抢走。
+ */
+const SHANGHAI_SCHOOLS: { school: string; aliases: string[] }[] = [
+  { school: '复旦大学', aliases: ['复旦大学', '复旦'] },
+  { school: '上海交通大学', aliases: ['上海交通大学', '上海交大', '交大'] },
+  { school: '同济大学', aliases: ['同济大学', '同济'] },
+  { school: '华东师范大学', aliases: ['华东师范大学', '华东师大', '华师大', '华师'] },
+  { school: '华东理工大学', aliases: ['华东理工大学', '华东理工', '华理'] },
+  { school: '上海大学', aliases: ['上海大学', '上大'] },
+  { school: '东华大学', aliases: ['东华大学', '东华'] },
+  { school: '上海外国语大学', aliases: ['上海外国语大学', '上海外国语', '上外'] },
+  { school: '上海财经大学', aliases: ['上海财经大学', '上海财经', '上财'] },
+  { school: '上海理工大学', aliases: ['上海理工大学', '上海理工', '上理'] },
+  { school: '上海师范大学', aliases: ['上海师范大学', '上海师范', '上师大'] },
+  { school: '上海海事大学', aliases: ['上海海事大学', '上海海事', '海事大学'] },
+  { school: '上海中医药大学', aliases: ['上海中医药大学', '上海中医药', '中医大'] },
+  { school: '上海对外经贸大学', aliases: ['上海对外经贸大学', '对外经贸', '上贸大'] },
+  { school: '上海工程技术大学', aliases: ['上海工程技术大学', '工程技术大学'] },
+  { school: '上海应用技术大学', aliases: ['上海应用技术大学', '应用技术大学', '上应大'] },
+  { school: '上海电力大学', aliases: ['上海电力大学', '上海电力', '上电'] },
+  { school: '上海立信会计金融学院', aliases: ['上海立信会计金融学院', '立信会计', '立信'] },
+  { school: '上海政法学院', aliases: ['上海政法学院', '上政'] },
+  { school: '上海体育大学', aliases: ['上海体育大学', '上海体育学院', '上体'] },
+  { school: '上海科技大学', aliases: ['上海科技大学', '上科大'] },
+  { school: '上海音乐学院', aliases: ['上海音乐学院', '上音'] },
+  { school: '上海戏剧学院', aliases: ['上海戏剧学院', '上戏'] },
+  { school: '上海第二工业大学', aliases: ['上海第二工业大学', '二工大'] },
+  { school: '上海电机学院', aliases: ['上海电机学院', '电机学院'] },
+  { school: '上海商学院', aliases: ['上海商学院'] },
+  { school: '上海健康医学院', aliases: ['上海健康医学院', '健康医学院'] },
+  { school: '上海海关学院', aliases: ['上海海关学院', '海关学院'] }
+]
+
+/** 中小学、择校平台混进来会污染统计——对标的是高校，不是 K12 */
+const NOT_UNIVERSITY = /中学|小学|附中|高中|幼儿园|国际学校|择校|升学|留学|考研|专升本/
+
+/**
+ * 从公众号名猜学校。
+ *
+ * 猜错了用户能改，但不猜的话每一条都要手填学校，二十个号就是二十次重复劳动。
+ * 分三步：先查上海高校简称表（准确），再退化为「去掉组织后缀」，最后不行就留空。
+ * 刻意不猜外省市高校：这个库对标的是上海兄弟高校，猜成「南京师范大学」
+ * 只会让筛选器里多出一堆用不上的选项。
+ */
+export function guessSchool(sourceName: string): string {
+  const name = sourceName.replace(/\s+/g, '').trim()
+  if (!name) return ''
+  if (NOT_UNIVERSITY.test(name)) return ''
+
+  let best: { school: string; len: number } | null = null
+  for (const item of SHANGHAI_SCHOOLS) {
+    for (const alias of item.aliases) {
+      if (!name.includes(alias)) continue
+      if (!best || alias.length > best.len) best = { school: item.school, len: alias.length }
+    }
+  }
+  if (best) return best.school
+
+  // 兜底：名字里明确带「大学/学院」的，取到该词为止，至少能分得开不同学校
+  const generic = name.match(/^[\u4e00-\u9fa5]{2,12}?(?:大学|学院)/)
+  if (generic) return generic[0]
+  return ''
 }
 
 /**

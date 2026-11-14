@@ -1167,6 +1167,7 @@ function AiConfigInner() {
   const [excludeAttachments, setExcludeAttachments] = useState(false)
   const [userGrade, setUserGrade] = useState('')
   const [userMajor, setUserMajor] = useState('')
+  const [ourContext, setOurContext] = useState('')
   const [consentOpen, setConsentOpen] = useState(false)
   const [consentChecked, setConsentChecked] = useState(false)
   const pendingPatchRef = useRef<SettingsPatch | null>(null)
@@ -1194,6 +1195,7 @@ function AiConfigInner() {
         setExcludeAttachments(s.aiExcludeAttachments)
         setUserGrade(s.userGrade || '')
         setUserMajor(s.userMajor || '')
+        setOurContext(s.benchOurContext || '')
       })
       .catch(() => {})
     refreshStatus()
@@ -1282,7 +1284,8 @@ function AiConfigInner() {
       aiIsLocal: !!preset?.isLocal,
       aiExcludeAttachments: excludeAttachments,
       userGrade: userGrade.trim(),
-      userMajor: userMajor.trim()
+      userMajor: userMajor.trim(),
+      benchOurContext: ourContext.trim()
     }
     if (cfg.apiKey) patch.aiApiKey = cfg.apiKey
     // A2：首次保存先弹授权确认
@@ -1405,6 +1408,17 @@ function AiConfigInner() {
             <Input value={userGrade} placeholder="年级，如 大一" onChange={(e) => setUserGrade(e.target.value)} style={{ width: 160 }} />
             <Input value={userMajor} placeholder="专业，如 计算机科学" onChange={(e) => setUserMajor(e.target.value)} style={{ flex: 1 }} />
           </Space>
+        </Form.Item>
+        <Form.Item
+          label="本校条件（对标库用）"
+          extra="对标库判断「别的学校这么做，我们能不能照做」时会参考这段描述。写具体些：学生规模、可借场地与申请周期、单场预算、宣传渠道。写得太笼统，模型只能按「一般大学」给结论。"
+        >
+          <Input.TextArea
+            rows={3}
+            value={ourContext}
+            placeholder="如：本科生每年级约 400-500 人；可借体育馆、报告厅，需提前两周申请；单场预算不超一万元"
+            onChange={(e) => setOurContext(e.target.value)}
+          />
         </Form.Item>
       </Form>
       <Space wrap>

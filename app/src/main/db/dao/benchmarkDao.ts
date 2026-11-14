@@ -17,12 +17,14 @@ import type {
   BenchArticleFilter,
   BenchArticleInfo,
   BenchArticleStatus,
+  BenchBriefItem,
   BenchMigrationFit,
   BenchNoticeKind,
   BenchSourceCategory,
   BenchSourceInfo,
   BenchStats
 } from '../../../shared/benchmark'
+import { guessSchool } from '../../../shared/benchmark'
 import { nowLocal } from '../../../shared/imTime'
 
 // ---------------- 源 ----------------
@@ -208,6 +210,28 @@ export function getArticle(
   return { ...toArticleInfo(row), body: body?.body ?? '' }
 }
 
+/**
+ * 把握手失败的文章放回队列。
+ *
+ * unreachable 是「这次没拿到」，不是终态：风控会解、网络会好、页面会恢复。
+ * 但也不能无限重试——那等于每次采集都拿同一批死链去撞墙。所以只放回
+ * 最近一次失败在 holdMs 之内的，更早的说明反复试过还是不行，留着记录即可。
+ */
+export function resetUnreachable(db: DatabaseSync, holdMs = 30 * 60 * 1000): number {
+  // 必须用本地时间格式化：fetched_at 存的是 nowLocal()，拿 toISOString()（UTC）
+  // 去比会差 8 小时，条件永远不成立，一条也放不回来。
+  const d = new Date(Date.now() - holdMs)
+  const p = (n: number): string => String(n).padStart(2, '0')
+  const cutoff = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+  const info = db
+    .prepare(
+      `UPDATE bench_article SET status = 'new', error = ''
+        WHERE status = 'unreachable' AND (fetched_at IS NULL OR fetched_at <= ?)`
+    )
+    .run(cutoff)
+  return Number(info.changes)
+}
+
 /** 待抓取的队列：只要 new 状态的，按入队先后顺序，先来先抓 */
 export function pendingArticles(
   db: DatabaseSync,
@@ -254,9 +278,11 @@ export function ensureSourceByName(db: DatabaseSync, name: string): number | nul
     | { id: number }
     | undefined
   if (existing) return existing.id
+  // 顺手把学校猜出来：公众号名多半是「学校名+组织后缀」，猜不中留空让用户改，
+  // 但一条都不猜的话，采完二十个号要手填二十次学校
   const info = db
-    .prepare("INSERT INTO bench_source (name, school, category) VALUES (?, '', 'student_union')")
-    .run(clean)
+    .prepare("INSERT INTO bench_source (name, school, category) VALUES (?, ?, 'student_union')")
+    .run(clean, guessSchool(clean))
   return Number(info.lastInsertRowid)
 }
 
@@ -284,18 +310,32 @@ export function markFetchFailed(
 export function pendingExtract(
   db: DatabaseSync,
   limit: number
-): { id: number; title: string; body: string }[] {
-  return db
+): { id: number; title: string; body: string; publishedAt: string | null }[] {
+  const rows = db
     .prepare(
-      `SELECT id, title, COALESCE(body, '') AS body
-         FROM bench_article WHERE status = 'fetched' ORDER BY id LIMIT ?`
+      `SELECT id, title, COALESCE(body, '') AS body, published_at
+         FROM bench_article
+        WHERE status = 'fetched'
+          -- 纯图推送已经归档过了：正文只有署名，抽出来只会是「类型对、其他全空」的假记录，
+          -- 混在库里比空着更糟——看上去像有数据，实际什么也没告诉你
+          AND COALESCE(error, '') NOT LIKE '%正文为图片%'
+        ORDER BY id LIMIT ?`
     )
-    .all(limit) as { id: number; title: string; body: string }[]
+    .all(limit) as unknown as { id: number; title: string; body: string; published_at: string | null }[]
+  return rows.map((r) => ({ id: r.id, title: r.title, body: r.body, publishedAt: r.published_at }))
 }
 
-/** 判定为非活动：状态推到 parsed，但不写 bench_activity */
-export function markSkipped(db: DatabaseSync, id: number): void {
-  db.prepare("UPDATE bench_article SET status = 'parsed', is_activity = 0, error = '' WHERE id = ?").run(id)
+/**
+ * 判定为非活动（或纯图推送）：状态推到 parsed，但不写 bench_activity。
+ *
+ * note 会存进 error 字段当备注用：这类文章不是失败，但用户点进去该知道
+ * 为什么没有字段，而不是对着一片空白猜是不是没跑成功。
+ */
+export function markSkipped(db: DatabaseSync, id: number, note = ''): void {
+  db.prepare("UPDATE bench_article SET status = 'parsed', is_activity = 0, error = ? WHERE id = ?").run(
+    note.slice(0, 500),
+    id
+  )
 }
 
 export function markExtractFailed(db: DatabaseSync, id: number, error: string): void {
@@ -442,4 +482,71 @@ export function listSchools(db: DatabaseSync): string[] {
     )
     .all() as { school: string }[]
   return rows.map((r) => r.school)
+}
+
+/**
+ * 简报用的记录集。
+ *
+ * 与列表查询的区别：这里必然带 activity（只取已抽出活动的），且一次拿全
+ * 生成简报需要的字段，避免「列表拿到 100 条、再逐条查详情」那种 N+1。
+ * 排序按学校、再按时间，因为简报是分学校念的。
+ */
+export function briefRows(db: DatabaseSync, filter: BenchArticleFilter): BenchBriefItem[] {
+  const where: string[] = ["a.status = 'parsed'", 'act.article_id IS NOT NULL']
+  const args: (string | number)[] = []
+  if (filter.school) {
+    where.push('s.school = ?')
+    args.push(filter.school)
+  }
+  if (filter.kind) {
+    where.push('act.kind = ?')
+    args.push(filter.kind)
+  }
+  if (filter.from) {
+    where.push('substr(a.published_at, 1, 10) >= ?')
+    args.push(filter.from)
+  }
+  if (filter.to) {
+    where.push('substr(a.published_at, 1, 10) <= ?')
+    args.push(filter.to)
+  }
+  if (filter.keyword) {
+    where.push('a.title LIKE ?')
+    args.push(`%${filter.keyword}%`)
+  }
+  const limit = Math.min(Math.max(filter.limit ?? 200, 1), 500)
+  const rows = db
+    .prepare(
+      `SELECT a.id, COALESCE(s.school, '') AS school, COALESCE(s.name, '') AS source_name,
+              a.title, a.url, a.published_at,
+              act.kind, act.week_no, act.start_at, act.location, act.org_form, act.audience,
+              act.agenda, act.promo_channels, act.migration_fit, act.migration_note, act.confidence
+         FROM bench_article a
+         JOIN bench_source s ON s.id = a.source_id
+         JOIN bench_activity act ON act.article_id = a.id
+        WHERE ${where.join(' AND ')}
+        ORDER BY school, a.published_at DESC, a.id DESC
+        LIMIT ?`
+    )
+    .all(...args, limit) as unknown as Record<string, unknown>[]
+
+  return rows.map((r) => ({
+    id: Number(r.id),
+    school: String(r.school ?? ''),
+    sourceName: String(r.source_name ?? ''),
+    title: String(r.title ?? ''),
+    url: String(r.url ?? ''),
+    publishedAt: (r.published_at as string | null) ?? null,
+    kind: String(r.kind ?? ''),
+    weekNo: r.week_no === null || r.week_no === undefined ? null : Number(r.week_no),
+    startAt: (r.start_at as string | null) ?? null,
+    location: String(r.location ?? ''),
+    orgForm: String(r.org_form ?? ''),
+    audience: String(r.audience ?? ''),
+    agenda: parseJsonArray(r.agenda),
+    promoChannels: parseJsonArray(r.promo_channels),
+    migrationFit: String(r.migration_fit ?? '') as BenchMigrationFit,
+    migrationNote: String(r.migration_note ?? ''),
+    confidence: Number(r.confidence ?? 0)
+  }))
 }

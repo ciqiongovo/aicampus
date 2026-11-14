@@ -36,16 +36,18 @@ export interface ExtractedActivity {
 }
 
 /**
- * 本校条件。可迁移性判断需要拿它做参照，所以写进提示词。
+ * 提示词模板。
  *
- * 现在是常量；等系统真正上线，这里应该改成设置项（学生规模、可借场地、年度预算），
- * 否则模型会按「一般大学」的想象去评，评出来的结论对本校没用。
+ * 本校条件由调用方传入（来自设置页）。写死在代码里看着能用，其实是坑：
+ * 模型会按「一般大学」的想象去评可迁移性，而真正卡人的往往是具体条件——
+ * 场地要提前几天申请、单场预算多少、有没有能容纳八百人的厅。
+ * 这些只有本校的人知道，所以必须可改。
  */
-const OUR_CONTEXT = `本校情况（用于判断可迁移性）：上海科技大学，本科生每年级约 400-500 人，学生会生活权益部 10 余人；可用场地有体育馆、报告厅、学生活动中心，需提前申请；活动经费有限，单场预算一般不超过一万元；宣传主要靠校内公众号与班级群。`
+export function buildSystemPrompt(ourContext: string): string {
+  const context = ourContext.trim() || '（未填写本校条件）'
+  return `你是高校学生活动信息的整理助手。给你一篇高校公众号推文，判断它是不是一篇「学生活动」的通知（晚会、比赛、讲座、沙龙、招新、志愿服务、运动会、展览等），如果是，抽出结构化字段。
 
-const SYSTEM_PROMPT = `你是高校学生活动信息的整理助手。给你一篇高校公众号推文，判断它是不是一篇「学生活动」的通知（晚会、比赛、讲座、沙龙、招新、志愿服务、运动会、展览等），如果是，抽出结构化字段。
-
-${OUR_CONTEXT}
+本校情况（用于判断可迁移性）：${context}
 
 只输出 JSON，不要任何解释文字。字段如下：
 {
@@ -74,6 +76,7 @@ ${OUR_CONTEXT}
 3. 二次通知指这件事之前已经通知过、这次是变更或补充（改期、换场地、取消、加场）。首次通知不算。
 4. 一篇文章里有多个活动时，只抽最主要那一个。
 5. agenda 只抽原文真正写出来的环节。原文没说议程就留空数组，不要按「一般晚会都有开场致辞」补。`
+}
 
 /** 正文过长时截取首尾：活动要素通常出现在开头，变更说明常在文末 */
 function trimBody(body: string, head = 2600, tail = 900): string {
@@ -132,10 +135,12 @@ export interface ExtractInput {
 /** 抽出活动；模型不可用或返回不可解析时抛错，由调用方决定重试 */
 export async function extractActivity(
   cfg: AiConfigInput,
-  input: ExtractInput
+  input: ExtractInput,
+  /** 本校条件，来自设置页；空串表示没填，提示词里会写明「未填写」 */
+  ourContext = ''
 ): Promise<ExtractedActivity> {
   const user = `标题：${input.title}\n\n正文：\n${trimBody(input.body)}`
-  const raw = await chatCompletion(cfg, SYSTEM_PROMPT, user, true)
+  const raw = await chatCompletion(cfg, buildSystemPrompt(ourContext), user, true)
 
   let data: Record<string, unknown>
   try {

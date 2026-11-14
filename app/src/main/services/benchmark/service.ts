@@ -14,6 +14,7 @@ import type {
   BenchArticleDetail,
   BenchArticleFilter,
   BenchArticleInfo,
+  BenchBrief,
   BenchExtractResult,
   BenchFetchResult,
   BenchImportResult,
@@ -25,11 +26,23 @@ import { articleUrlKey } from '../../../shared/benchmark'
 import type { AiConfigInput } from '../../../shared/types'
 import type { SettingsStore } from '../../store/settings'
 import * as dao from '../../db/dao/benchmarkDao'
+import { composeBrief } from './brief'
+import { extractByRules } from './rule-extract'
 import { fetchArticle } from './fetcher'
+import { VERIFY_BLOCKED } from './page'
 import { extractActivity } from './extractor'
 
 /** 抓取一篇的最长等待：超过就当这次没拿到，下次重试 */
 const FETCH_TIMEOUT_MS = 15000
+
+/** 两篇之间的间隔。微信对同一出口 IP 的连续访问有阈值，抓得太密会整批被挡 */
+const GAP_MIN_MS = 2500
+const GAP_MAX_MS = 5500
+
+/** 连续几次撞验证就停手，免得把整个队列刷成失败 */
+const VERIFY_BREAKER = 3
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
 export class BenchmarkService {
   private fetching = false
@@ -117,15 +130,38 @@ export class BenchmarkService {
     return dao.stats(this.db)
   }
 
+  /**
+   * 生成简报。
+   *
+   * 筛选条件直接复用列表那套，所以「界面上看到什么，简报里就是什么」——
+   * 老师问的时候不用重新组织口径，眼前这一屏就是答案。
+   */
+  brief(filter: BenchArticleFilter): BenchBrief {
+    const items = dao.briefRows(this.db, filter)
+    const label = this.describeFilter(filter)
+    return composeBrief(items, label, new Date())
+  }
+
+  private describeFilter(filter: BenchArticleFilter): string {
+    const parts: string[] = []
+    if (filter.from) parts.push('近一年')
+    if (filter.school) parts.push(filter.school)
+    if (filter.kind) parts.push(filter.kind)
+    if (filter.keyword) parts.push(`“${filter.keyword}”`)
+    return parts.length ? parts.join(' · ') : '全部活动'
+  }
+
   // ---------------- 抓取 ----------------
 
   async runFetch(limit = 20): Promise<BenchFetchResult> {
     if (this.fetching) throw new Error('采集正在进行中')
     this.fetching = true
-    const result: BenchFetchResult = { fetched: 0, deleted: 0, unreachable: 0 }
+    const result: BenchFetchResult = { fetched: 0, imageOnly: 0, deleted: 0, unreachable: 0, blocked: false }
+    let blockedStreak = 0
     try {
       const queue = dao.pendingArticles(this.db, Math.min(Math.max(limit, 1), 200))
-      for (const item of queue) {
+      for (const [i, item] of queue.entries()) {
+        if (i > 0) await sleep(GAP_MIN_MS + Math.random() * (GAP_MAX_MS - GAP_MIN_MS))
         const outcome = await fetchArticle(item.url, { timeoutMs: FETCH_TIMEOUT_MS })
         if (outcome.status === 'ok') {
           const sourceId = dao.ensureSourceByName(this.db, outcome.author) ?? undefined
@@ -136,7 +172,13 @@ export class BenchmarkService {
             body: outcome.body,
             sourceId
           })
-          result.fetched += 1
+          if (outcome.imageOnly) {
+            dao.markSkipped(this.db, item.id, outcome.error)
+            result.imageOnly += 1
+          } else {
+            result.fetched += 1
+          }
+          blockedStreak = 0
         } else {
           dao.markFetchFailed(
             this.db,
@@ -144,8 +186,20 @@ export class BenchmarkService {
             outcome.status === 'deleted' ? 'deleted' : 'unreachable',
             outcome.error
           )
-          if (outcome.status === 'deleted') result.deleted += 1
-          else result.unreachable += 1
+          if (outcome.status === 'deleted') {
+            result.deleted += 1
+            blockedStreak = 0
+          } else {
+            result.unreachable += 1
+            if (outcome.error === VERIFY_BLOCKED) {
+              blockedStreak += 1
+              if (blockedStreak >= VERIFY_BREAKER) {
+                // 剩下的没动，保持 new 状态，等会儿还能接着抓
+                result.blocked = true
+                break
+              }
+            }
+          }
         }
       }
       return result
@@ -158,14 +212,27 @@ export class BenchmarkService {
 
   async runExtract(limit = 20): Promise<BenchExtractResult> {
     if (this.extracting) throw new Error('抽取正在进行中')
-    const cfg = await this.aiConfig()
+    // 没配模型不代表不能抽：退回规则抽取，至少把类型、时间、地点填上。
+    // 直接抛错会让人卡在「必须先配 key」这一步，而那和「能不能看到东西」是两件事。
+    const cfg = await this.aiConfig().catch(() => null)
     this.extracting = true
-    const result: BenchExtractResult = { activities: 0, skipped: 0, failed: 0 }
+    const result: BenchExtractResult = {
+      mode: cfg ? 'llm' : 'rule',
+      activities: 0,
+      skipped: 0,
+      failed: 0
+    }
     try {
       const queue = dao.pendingExtract(this.db, Math.min(Math.max(limit, 1), 100))
       for (const item of queue) {
         try {
-          const extracted = await extractActivity(cfg, { title: item.title, body: item.body })
+          const extracted = cfg
+            ? await extractActivity(cfg, { title: item.title, body: item.body }, cfg.ourContext)
+            : extractByRules({
+                title: item.title,
+                body: item.body,
+                publishedAt: item.publishedAt
+              })
           if (!extracted.isActivity) {
             dao.markSkipped(this.db, item.id)
             result.skipped += 1
@@ -188,7 +255,7 @@ export class BenchmarkService {
             migrationFit: extracted.migrationFit,
             migrationNote: extracted.migrationNote,
             confidence: extracted.confidence,
-            model: cfg.model
+            model: cfg ? cfg.model : 'rule'
           })
           result.activities += 1
         } catch (error) {
@@ -207,7 +274,8 @@ export class BenchmarkService {
   }
 
   /** 从设置里取模型配置；没配就直说缺什么，不要让用户对着一个泛泛的失败重试 */
-  private async aiConfig(): Promise<AiConfigInput> {
+  /** 抽出本校条件，随配置一起传下去 */
+  private async aiConfig(): Promise<AiConfigInput & { ourContext: string }> {
     const s = await this.settings.get()
     if (!s.aiBaseURL || !s.aiModel) {
       throw new Error('还没有配置模型：请在「设置 → AI 服务」里填端点和模型，再回来抽取')
@@ -219,7 +287,8 @@ export class BenchmarkService {
       provider: s.aiProvider,
       baseURL: s.aiBaseURL,
       model: s.aiModel,
-      apiKey: s.aiApiKey
+      apiKey: s.aiApiKey,
+      ourContext: s.benchOurContext
     }
   }
 }
