@@ -370,12 +370,25 @@ function BenchmarkPage(): JSX.Element {
       message.info('上一个动作还没跑完，等它结束再点')
       return
     }
+    /*
+     * 按「活动」挑，不按「文章」挑。
+     *
+     * 上科大名下有 27 篇文章，但只有 4 场活动——它那几个号本来就不怎么发活动。
+     * 按文章数排队，它永远排不进「最缺」，而真正缺的是活动不足 2 场、
+     * 连对比表都进不去的那几所。文章数加个上限，是防止反复去搜同一所：
+     * 搜过一轮之后文章数会明显上涨，自然就不在候选里了。
+     */
     const targets = schoolList
-      .filter((s) => s.articleCount < 3)
-      .sort((a, b) => a.articleCount - b.articleCount || a.name.localeCompare(b.name))
+      .filter((s) => s.activityCount < 2 && s.articleCount < 6)
+      .sort(
+        (a, b) =>
+          a.activityCount - b.activityCount ||
+          a.articleCount - b.articleCount ||
+          a.name.localeCompare(b.name)
+      )
       .slice(0, 5)
     if (!targets.length) {
-      message.info('每所学校都已有 3 篇以上，暂时不用补')
+      message.info('每所学校都有 2 场以上活动了，暂时不用补')
       return
     }
 
@@ -801,7 +814,7 @@ function BenchmarkPage(): JSX.Element {
                 文章 <b>{stats.articles}</b>
               </span>
               <span>
-                活动 <b>{stats.activities}</b>
+                活动 <b>{stats.activities}</b> 条
               </span>
               {/*
                 全库 51 场、近一年只筛出 11 场时，如果只写「活动 51」，
@@ -901,7 +914,7 @@ function BenchmarkPage(): JSX.Element {
               ? `只看已有数据的（${withData.length} 所）`
               : `显示全部 ${schoolList.length} 所`}
           </Button>
-          <Tooltip title="自动挑出文章最少的 5 所学校，依次搜一遍。每所之间会停顿，整轮约两三分钟；中途撞上验证码会自动收工">
+          <Tooltip title="挑出活动不足两场、连对比表都进不去的 5 所学校，依次搜一遍。每所之间会停顿，整轮约两三分钟；中途撞上验证码会自动收工">
             <Button
               size="small"
               icon={<ThunderboltOutlined />}
