@@ -5,8 +5,11 @@
   "main": "./out/main/index.js",
   "private": true,
   "packageManager": "pnpm@10.15.0",
+  "pnpm": {
+    "onlyBuiltDependencies": ["electron", "esbuild", "electron-winstaller"]
+  },
   "author": "知枢",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -30,6 +33,7 @@
     "test:workspace": "tsc -p tsconfig.test.json && node --test tests/workspace.test.cjs tests/workspace-security.test.cjs tests/rule-engine.test.cjs tests/agent-model.test.cjs"
   },
   "dependencies": {
+    "dayjs": "^1.11.23",
     "imapflow": "^2.4.3",
     "mailparser": "^3.9.39"
   },
