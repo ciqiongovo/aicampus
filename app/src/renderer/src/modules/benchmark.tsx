@@ -12,6 +12,7 @@ import {
   Space,
   Switch,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography
@@ -149,6 +150,17 @@ function BenchmarkPage(): JSX.Element {
   /** 源表里改归属用的下拉项：只给清单里的全称，别让人敲错字 */
   const schoolNames = useMemo(() => schoolList.map((s) => s.name), [schoolList])
   const withData = useMemo(() => schoolList.filter((s) => s.articleCount > 0), [schoolList])
+
+  /**
+   * 当前筛选结果里的活动条数。
+   *
+   * 列表已经被时间窗筛过一遍，所以这个数就是「眼前这一屏有多少场」，
+   * 和生成简报用的是同一批条目。列表还没加载完时给 null，免得闪一下 0。
+   */
+  const filteredActivities = useMemo(
+    () => (rows.length ? rows.filter((r) => r.isActivity === true).length : null),
+    [rows]
+  )
   /**
    * 默认只摆出「已经采到东西的」和本校。
    * 28 张卡片一次铺开会把第一步撑满整屏，而第一次打开的人真正要看的是
@@ -407,9 +419,22 @@ function BenchmarkPage(): JSX.Element {
     })
   }
 
-  const doBrief = (): void => {
+  /**
+   * 生成简报。
+   *
+   * withRange 用来从简报抽屉里就地切换时间窗——抽屉打开时，下拉在身后被遮住，
+   * 让人关掉抽屉、改下拉、再点一次，中间那两步纯属折腾。
+   * 传了就用传的，不能先 setRange 再读 currentFilter：setState 是异步的，
+   * 那一刻读到的还是旧值，生成出来仍是刚才那批。
+   */
+  const doBrief = (withRange?: 'all' | 'half' | 'year'): void => {
+    if (withRange) setRange(withRange)
     void run('brief', async () => {
-      const next = await window.api.benchBrief(currentFilter())
+      const base = currentFilter()
+      const filter: BenchArticleFilter = withRange
+        ? { ...base, from: withRange === 'all' ? undefined : daysAgo(withRange === 'year' ? 365 : 180) }
+        : base
+      const next = await window.api.benchBrief(filter)
       setBrief(next)
       return next.activityCount
         ? `简报已生成：${next.schoolCount} 所学校、${next.activityCount} 场活动`
@@ -433,6 +458,24 @@ function BenchmarkPage(): JSX.Element {
       .writeText(brief.markdown)
       .then(() => message.success('已复制，可直接粘进文档或群聊'))
       .catch(() => message.error('复制失败，可以全选下面的文字手动复制'))
+  }
+
+  /**
+   * 导出 HTML 报告。
+   *
+   * 与「存成文件」并列而不是取代它：md 是给自己改的，html 是给别人看的。
+   * 报告内容由主进程按同一份简报重算，不是把屏幕上这段 markdown 包个壳，
+   * 两边的数才会永远对得上。
+   */
+  const saveReport = (): void => {
+    if (!brief) return
+    void run('report', async () => {
+      const html = await window.api.benchReport(currentFilter())
+      const r = await window.api.appSaveText(`${brief.title || '对标报告'}.html`, html, 'html')
+      if (r.canceled) return ''
+      if (!r.ok) throw new Error(r.message || '保存失败')
+      return `报告已保存：${r.path}　双击可看，Ctrl+P 直接印`
+    })
   }
 
   const addSource = (): void => {
@@ -670,6 +713,17 @@ function BenchmarkPage(): JSX.Element {
               <span>
                 活动 <b>{stats.activities}</b>
               </span>
+              {/*
+                全库 51 场、近一年只筛出 11 场时，如果只写「活动 51」，
+                用户会奇怪下面怎么才几条；只写「11」又像是数据丢了。
+                两个数并排，才说明白「库里有这么多，当前时间窗里是这么多」。
+              */}
+              {filteredActivities !== null && filteredActivities < stats.activities ? (
+                <span className="bench-muted">
+                  当前筛出 <b>{filteredActivities}</b>（
+                  {range === 'year' ? '近一年' : range === 'half' ? '近半年' : '全部'}）
+                </span>
+              ) : null}
               <span className="bench-muted">原文已删 {stats.deleted}</span>
             </>
           ) : null}
@@ -865,7 +919,7 @@ function BenchmarkPage(): JSX.Element {
             <Switch size="small" checked={secondOnly} onChange={setSecondOnly} />
             <span>只看二次通知</span>
           </Space>
-          <Button type="primary" icon={<FileTextOutlined />} loading={busy === 'brief'} disabled={!!busy && busy !== 'brief'} onClick={doBrief}>
+          <Button type="primary" icon={<FileTextOutlined />} loading={busy === 'brief'} disabled={!!busy && busy !== 'brief'} onClick={() => doBrief()}>
             生成简报
           </Button>
           <Button
@@ -1085,14 +1139,17 @@ function BenchmarkPage(): JSX.Element {
       {/* ---------- 简报 ---------- */}
       <Drawer
         open={!!brief}
-        width={760}
+        width={900}
         onClose={() => setBrief(null)}
         title={brief?.title ?? '简报'}
         extra={
           brief ? (
             <Space>
               <Button size="small" onClick={saveBrief}>
-                存成文件
+                存成 Markdown
+              </Button>
+              <Button size="small" icon={<FileTextOutlined />} onClick={saveReport}>
+                导出报告
               </Button>
               <Button type="primary" size="small" onClick={copyBrief}>
                 复制全文
@@ -1103,6 +1160,20 @@ function BenchmarkPage(): JSX.Element {
       >
         {brief ? (
           <div className="bench-brief-wrap">
+            {/*
+              近一年只有 11 场、库里其实有 51 场时，必须说出来。
+              不说的话，读者会以为采集只有这么点成果，而问题出在时间窗上。
+            */}
+            {stats && range !== 'all' && brief.activityCount < stats.activities ? (
+              <div className="bench-brief-tip">
+                当前只统计了{range === 'year' ? '近一年' : '近半年'}的活动（{brief.activityCount} 场）。
+                库里共 {stats.activities} 场，
+                <Button type="link" size="small" style={{ padding: 0 }} onClick={() => doBrief('all')}>
+                  切到「全部」重新生成
+                </Button>
+                ，能多出 {stats.activities - brief.activityCount} 场。
+              </div>
+            ) : null}
             <div className="bench-brief-meta">
               <span>
                 覆盖 <b>{brief.schoolCount}</b> 所学校
@@ -1112,11 +1183,28 @@ function BenchmarkPage(): JSX.Element {
               </span>
               <span className="bench-muted">生成于 {brief.generatedAt}</span>
             </div>
-            <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-              下面是纯文本简报，可以直接复制进 Word 或群聊。每条都带原文链接，
-              别人追问时能当场打开。
-            </Typography.Paragraph>
-            <pre className="bench-brief">{brief.markdown}</pre>
+            <Tabs
+              size="small"
+              items={[
+                {
+                  key: 'compare',
+                  label: '横向对比',
+                  children: <ComparePanel brief={brief} />
+                },
+                {
+                  key: 'md',
+                  label: '简报原文',
+                  children: (
+                    <>
+                      <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+                        纯文本，可直接复制进 Word 或群聊。每条都带原文链接，别人追问时能当场打开。
+                      </Typography.Paragraph>
+                      <pre className="bench-brief">{brief.markdown}</pre>
+                    </>
+                  )
+                }
+              ]}
+            />
           </div>
         ) : null}
       </Drawer>
@@ -1456,6 +1544,188 @@ function CompareTable({ items }: { items: BenchArticleDetail[] }): JSX.Element {
       <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 8 }}>
         带底色的行表示各篇不一样。空白是原文没写或没抽到，不是「无此环节」。
       </Typography.Paragraph>
+    </div>
+  )
+}
+
+/**
+ * 一条横向条形。
+ *
+ * 条长按本组最大值归一，不按百分占比：占比柱在一行里全都短，看不出谁多谁少。
+ * 数字仍然写在右边，条只是帮眼睛排序用的。
+ */
+function BarList({
+  title,
+  unit,
+  data
+}: {
+  title: string
+  unit: string
+  data: { label: string; count: number }[]
+}): JSX.Element | null {
+  const rows = data.filter((d) => d.count > 0).slice(0, 8)
+  if (!rows.length) return null
+  const max = Math.max(...rows.map((r) => r.count), 1)
+  return (
+    <section className="bench-cmp-bars">
+      <div className="bench-cmp-h">{title}</div>
+      {rows.map((r) => (
+        <div className="bench-bar-row" key={r.label}>
+          <span className="bench-bar-label" title={r.label}>
+            {r.label}
+          </span>
+          <span className="bench-bar-track">
+            <span
+              className="bench-bar-fill"
+              style={{ width: `${Math.max((r.count / max) * 100, 3)}%` }}
+            />
+          </span>
+          <span className="bench-bar-val">
+            {r.count}
+            <i>{unit}</i>
+          </span>
+        </div>
+      ))}
+    </section>
+  )
+}
+
+/**
+ * 简报里的「横向对比」页签。
+ *
+ * 与「简报原文」放同一个抽屉里，因为它们用的是同一次计算的结果——
+ * 分成两个入口，迟早会出现一边九个学校、一边六个学校的情况，而用户没法判断该信哪个。
+ */
+function ComparePanel({ brief }: { brief: BenchBrief }): JSX.Element {
+  const { compare } = brief
+  const solid = compare.schools.filter((s) => !s.thin)
+  const cov = compare.coverage
+
+  if (!brief.activityCount) {
+    return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有符合条件的活动" />
+  }
+
+  /**
+   * 列是按「有几所学校真的有这项数据」动态加的。
+   *
+   * 固定摆八列的话，规模一列会全是「—」（实测 51 场里只有 5 场写了人数），
+   * 看的人会以为抽取漏了；藏着不说又像在回避。所以只在至少两所学校有数据时才比，
+   * 没有的那项交给上面的结论句去说明。
+   */
+  const columns: ColumnsType<(typeof solid)[number]> = [
+    {
+      title: '学校',
+      dataIndex: 'school',
+      width: 180,
+      render: (v: string, r) => (
+        <>
+          {v}
+          {r.isHome ? <Tag color="red" style={{ marginLeft: 6 }}>本校</Tag> : null}
+        </>
+      )
+    },
+    { title: '活动', dataIndex: 'activities', width: 64, align: 'right' }
+  ]
+
+  if (cov.scale >= 2) {
+    columns.push(
+      {
+        title: '中位规模',
+        dataIndex: 'medianScale',
+        width: 92,
+        align: 'right',
+        render: (v: number | null) =>
+          v === null ? <span className="bench-muted">—</span> : `${v} 人`
+      },
+      {
+        title: '人数覆盖',
+        dataIndex: 'scaleCoverage',
+        width: 88,
+        align: 'right',
+        render: (v: number) => <span className="bench-muted">{Math.round(v * 100)}%</span>
+      }
+    )
+  }
+
+  if (cov.week >= 2) {
+    columns.push({
+      title: '中位周次',
+      dataIndex: 'medianWeek',
+      width: 90,
+      align: 'right',
+      render: (v: number | null) =>
+        v === null ? <span className="bench-muted">—</span> : `第 ${v} 周`
+    })
+  }
+
+  if (cov.lead >= 2) {
+    columns.push({
+      title: '提前预告',
+      dataIndex: 'medianLeadDays',
+      width: 92,
+      align: 'right',
+      render: (v: number | null) =>
+        v === null ? <span className="bench-muted">—</span> : `${v} 天`
+    })
+  }
+
+  if (cov.promo >= 2) {
+    columns.push({
+      title: '宣传手段',
+      dataIndex: 'promoPerItem',
+      width: 88,
+      align: 'right',
+      render: (v: number) => `${v} 种`
+    })
+  }
+
+  if (cov.coHost >= 2) {
+    columns.push({
+      title: '有协办',
+      dataIndex: 'coHostRate',
+      width: 82,
+      align: 'right',
+      render: (v: number) => `${Math.round(v * 100)}%`
+    })
+  }
+
+  columns.push({ title: '最常办', dataIndex: 'topKind', ellipsis: true })
+
+  return (
+    <div className="bench-cmp">
+      <section className="bench-cmp-findings">
+        <div className="bench-cmp-h">先说结论</div>
+        {compare.insights.map((text, i) => (
+          <div className="bench-cmp-finding" key={i}>
+            <span className="bench-cmp-n">{i + 1}</span>
+            <span>{text}</span>
+          </div>
+        ))}
+      </section>
+
+      {solid.length ? (
+        <section>
+          <div className="bench-cmp-h">各校一览</div>
+          <Table
+            size="small"
+            rowKey="school"
+            tableLayout="fixed"
+            pagination={false}
+            dataSource={solid}
+            rowClassName={(r) => (r.isHome ? 'bench-cmp-home' : '')}
+            columns={columns}
+          />
+          <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: 8 }}>
+            中位数只按「原文写明」的条目算，旁边一列是覆盖率。18 场里只有 2 场写了人数时，
+            这个中位数不该和写满的学校并排看待。
+          </Typography.Paragraph>
+        </section>
+      ) : null}
+
+      <div className="bench-cmp-cols">
+        <BarList title="办的是些什么活动" unit="场" data={compare.kinds} />
+        <BarList title="宣传都用哪些手段" unit="次" data={compare.promos} />
+      </div>
     </div>
   )
 }

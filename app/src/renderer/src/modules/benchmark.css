@@ -536,3 +536,134 @@
   max-height: 180px;
   overflow: auto;
 }
+
+/* ---------- 简报 · 横向对比 ---------- */
+
+.bench-cmp {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding-top: 4px;
+}
+
+.bench-cmp-h {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--text-3);
+  margin-bottom: 10px;
+}
+
+/* 结论块：编号圆点让「一共几条」一眼可见，也方便嘴上说「第二点」 */
+.bench-cmp-findings {
+  padding: 14px 16px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.bench-cmp-finding {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 7px 0;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text);
+  border-bottom: 1px dashed var(--line);
+}
+
+.bench-cmp-finding:last-child {
+  border-bottom: none;
+}
+
+.bench-cmp-n {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 本校那一行要给出来源标记，但别用重色——它只是基准，不是重点 */
+.bench-cmp-home td {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.bench-cmp-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
+}
+
+.bench-cmp-bars {
+  min-width: 0;
+}
+
+.bench-bar-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 46px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.bench-bar-label {
+  font-size: 12px;
+  color: var(--text-2);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bench-bar-track {
+  height: 13px;
+  background: var(--surface-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.bench-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--text-3);
+  border-radius: 2px;
+}
+
+.bench-bar-val {
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.bench-bar-val i {
+  font-style: normal;
+  color: var(--text-3);
+  font-size: 10px;
+  margin-left: 1px;
+}
+
+@media (max-width: 720px) {
+  .bench-cmp-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* 简报顶部的时间窗提示：它解释的是「数字为什么小」，不是警告，所以用平色不用黄条 */
+.bench-brief-tip {
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.8;
+}

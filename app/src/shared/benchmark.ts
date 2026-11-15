@@ -23,6 +23,8 @@ export const BENCH_IPC = {
   benchSchools: 'bench:schools',
   benchKinds: 'bench:kinds',
   benchBrief: 'bench:brief',
+  /** 同一批条目的 HTML 报告，样式内联，可直接打印或发给别人 */
+  benchReport: 'bench:report',
   // ---- v1.0：选学校采集 ----
   benchSchoolList: 'bench:school-list',
   benchSchoolToggle: 'bench:school-toggle',
@@ -378,8 +380,76 @@ export interface BenchBrief {
   /** 按学校分组的条数，用于概览那一段 */
   perSchool: { school: string; count: number }[]
   items: BenchBriefItem[]
+  /** 横向对比：各校在同一维度上的数，不是条目的重新排列 */
+  compare: BenchCompare
   /** 已经排版好的 Markdown，直接可粘进文档或群聊 */
   markdown: string
+}
+
+// ---------- 横向对比 ----------
+
+/**
+ * 一所学校在对比表里的一行。
+ *
+ * 每个比率都带分母：只统计「原文里写了」的条目。
+ * 覆盖率单独给出来，是为了让人知道这个中位数是按几条算的——
+ * 18 场活动里只有 2 场写了人数，那个中位数不该和写满 18 场的学校并排比。
+ */
+export interface BenchCompareSchool {
+  school: string
+  isHome: boolean
+  activities: number
+  /** 原文里有明确人数数字的占比 */
+  scaleCoverage: number
+  /** 人数中位数；没有可用数字时为 null */
+  medianScale: number | null
+  /** 发布到活动开始的天数中位数；算不出时为 null */
+  medianLeadDays: number | null
+  /** 每条活动平均提到几种宣传手段 */
+  promoPerItem: number
+  /** 有协办/联办单位的占比 */
+  coHostRate: number
+  /** 举办周次（按开学日估算）的中位数；没算出来时为 null */
+  medianWeek: number | null
+  /** 最常办的一类活动 */
+  topKind: string
+  /** 样本不足，只列名字不进对比（一条数据算不出中位数） */
+  thin: boolean
+}
+
+/**
+ * 每个维度上有几所学校真的有数据。
+ *
+ * 校园活动推文普遍不写参与人数——实测 51 场里只有 5 场写了。
+ * 这种时候整列摆出来全是「—」，读者会以为是我们没抽出来，
+ * 而实际原因是原文没写。所以按这里的数决定这一列显不显示：
+ * 不足两所学校有数据，就不比，改为在结论里直说「这项普遍没写」。
+ */
+export interface BenchCompareCoverage {
+  scale: number
+  lead: number
+  promo: number
+  coHost: number
+  week: number
+}
+
+/** 某个维度上的一个取值：出现次数与占比 */
+export interface BenchCompareBucket {
+  label: string
+  count: number
+  /** count / 总活动数，0–1 */
+  share: number
+}
+
+export interface BenchCompare {
+  schools: BenchCompareSchool[]
+  /** 活动类型分布 */
+  kinds: BenchCompareBucket[]
+  /** 宣传手段分布 */
+  promos: BenchCompareBucket[]
+  coverage: BenchCompareCoverage
+  /** 能倒推回上表的结论句。写不出数字支撑的话不写 */
+  insights: string[]
 }
 
 // ---------- 渲染层可见的 API ----------
@@ -405,6 +475,14 @@ export interface BenchApi {
   benchKinds(): Promise<string[]>
   /** 按当前筛选条件生成简报；同条件重复调用结果一致，不做缓存 */
   benchBrief(filter: BenchArticleFilter): Promise<BenchBrief>
+  /**
+   * 同一批条目的 HTML 版报告。
+   *
+   * 返回的是完整 HTML 字符串，由界面交给保存对话框落盘。
+   * 不在主进程直接写文件：写到哪里、叫什么名字是用户的事，
+   * 主进程替他决定路径，他就得去翻文件夹找。
+   */
+  benchReport(filter: BenchArticleFilter): Promise<string>
 
   // ---- v1.0：按学校采集 ----
 

@@ -39,6 +39,7 @@ import type { AiConfigInput } from '../../../shared/types'
 import type { SettingsStore } from '../../store/settings'
 import * as dao from '../../db/dao/benchmarkDao'
 import { composeBrief } from './brief'
+import { buildReportHtml } from './report'
 import { extractByRules } from './rule-extract'
 import { fetchArticle } from './fetcher'
 import { VERIFY_BLOCKED } from './page'
@@ -158,6 +159,16 @@ export class BenchmarkService {
     const items = dao.briefRows(this.db, filter)
     const label = this.describeFilter(filter)
     return composeBrief(items, label, new Date())
+  }
+
+  /**
+   * HTML 版报告。
+   *
+   * 与 brief 走同一个筛选、同一份数据，只是换一种排法——不存在「简报和报告数字对不上」的可能，
+   * 因为它们本来就是同一次计算的两个出口。
+   */
+  report(filter: BenchArticleFilter): string {
+    return buildReportHtml(this.brief(filter))
   }
 
   private describeFilter(filter: BenchArticleFilter): string {

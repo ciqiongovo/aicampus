@@ -570,7 +570,7 @@ export interface RendererApi extends WorkspaceApi, DailyApi, CognitionApi, TodoA
    * 只接受 text，不接受 Buffer/Uint8Array：这条通道是给「导出简报」这类
    * 用户看得见的内容用的，不给渲染进程留任意二进制写盘的口子。
    */
-  appSaveText(defaultName: string, content: string): Promise<SaveTextResult>
+  appSaveText(defaultName: string, content: string, kind?: 'md' | 'html'): Promise<SaveTextResult>
   settingsGet(): Promise<SettingsView>
   settingsSet(patch: SettingsPatch): Promise<SettingsView>
   mailProvidersList(): Promise<MailProviderPreset[]>

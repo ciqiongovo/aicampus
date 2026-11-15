@@ -48,6 +48,11 @@
     "src/main/ipc/panel.ts",
     "src/main/ipc/materials.ts",
     "src/shared/panelQuery.ts",
+    "src/shared/benchmark.ts",
+    "src/shared/schools.ts",
+    "src/main/services/benchmark/compare.ts",
+    "src/main/services/benchmark/brief.ts",
+    "src/main/services/benchmark/report.ts",
     "src/renderer/src/modules/keywordCloudLayout.ts"
   ]
 }

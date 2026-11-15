@@ -11,7 +11,8 @@
  * - 不隐藏缺字段。时间不知道就写「原文未写」，不空着也不猜。
  */
 
-import type { BenchBrief, BenchBriefItem } from '../../../shared/benchmark'
+import type { BenchBrief, BenchBriefItem, BenchCompare } from '../../../shared/benchmark'
+import { buildCompare } from './compare'
 
 const FIT_TEXT: Record<string, string> = {
   easy: '现成条件可办',
@@ -79,6 +80,103 @@ function itemBlock(item: BenchBriefItem, index: number): string[] {
   return lines
 }
 
+/** 百分比，不写小数——简报里的数不该比它的来源更精确 */
+function pct(n: number): string {
+  return `${Math.round(n * 100)}%`
+}
+
+function ratioText(n: number | null, unit: string): string {
+  return n === null ? '—' : `${n} ${unit}`
+}
+
+/**
+ * 横向对比那一节。
+ *
+ * 放在逐条明细之前：读者先要知道「谁在哪一项上不一样」，再看具体怎么办的。
+ * 反过来放的话，读完几十条才看到结论，前面那些就白读了。
+ */
+function compareSection(c: BenchCompare): string[] {
+  const lines: string[] = []
+  lines.push('## 先说结论')
+  lines.push('')
+  for (const s of c.insights) {
+    lines.push(`- ${s}`)
+  }
+  lines.push('')
+
+  const solid = c.schools.filter((s) => !s.thin)
+  if (solid.length) {
+    // 列随数据走：某项不足两所学校有数据就整列不出现。
+    // 摆一串「—」既占地方，又容易让人以为是我们没抽出来。
+    const cols: { head: string; get: (s: (typeof solid)[number]) => string }[] = [
+      { head: '活动数', get: (s) => String(s.activities) }
+    ]
+    if (c.coverage.scale >= 2) {
+      cols.push(
+        { head: '中位规模', get: (s) => ratioText(s.medianScale, '人') },
+        { head: '人数覆盖', get: (s) => pct(s.scaleCoverage) }
+      )
+    }
+    if (c.coverage.week >= 2) {
+      cols.push({
+        head: '中位周次',
+        get: (s) => (s.medianWeek === null ? '—' : `第 ${s.medianWeek} 周`)
+      })
+    }
+    if (c.coverage.lead >= 2) {
+      cols.push({ head: '提前预告', get: (s) => ratioText(s.medianLeadDays, '天') })
+    }
+    if (c.coverage.promo >= 2) {
+      cols.push({ head: '宣传手段', get: (s) => `${s.promoPerItem} 种` })
+    }
+    if (c.coverage.coHost >= 2) {
+      cols.push({ head: '有协办', get: (s) => pct(s.coHostRate) })
+    }
+    cols.push({ head: '最常办', get: (s) => s.topKind })
+
+    lines.push('### 各校一览')
+    lines.push('')
+    lines.push(`| 学校 | ${cols.map((x) => x.head).join(' | ')} |`)
+    lines.push(`| --- | ${cols.map(() => '---').join(' | ')} |`)
+    for (const s of solid) {
+      const cells = cols.map((x) => x.get(s))
+      lines.push(`| ${s.school}${s.isHome ? '（本校）' : ''} | ${cells.join(' | ')} |`)
+    }
+    lines.push('')
+    lines.push(
+      '> 中位数只按「原文写明」的条目算，覆盖率另列。某项不足两所学校有数据时整列不出——那不是漏抽，是原文普遍没写。'
+    )
+    lines.push('')
+  }
+
+  if (c.kinds.length) {
+    lines.push('### 办的是些什么活动')
+    lines.push('')
+    lines.push(
+      c.kinds
+        .filter((k) => k.count > 0)
+        .slice(0, 8)
+        .map((k) => `${k.label} ${k.count} 场（${pct(k.share)}）`)
+        .join(' · ')
+    )
+    lines.push('')
+  }
+
+  if (c.promos.length) {
+    lines.push('### 宣传都用哪些手段')
+    lines.push('')
+    lines.push(
+      c.promos
+        .slice(0, 8)
+        .map((p) => `${p.label} ${p.count} 次`)
+        .join(' · ')
+    )
+    lines.push('')
+  }
+
+  return lines
+}
+
 /** 把一组活动排成 Markdown。返回的字符串要能直接粘进 Word 或群聊 */
 export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string {
   const lines: string[] = []
@@ -94,15 +192,12 @@ export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string 
     return lines.join('\n')
   }
 
-  lines.push('## 概览')
-  lines.push('')
-  lines.push('| 学校 | 活动数 | 备注 |')
-  lines.push('| --- | --- | --- |')
-  for (const s of brief.perSchool) {
-    const isHome = brief.items.some((i) => i.isHome && (i.school || '未填学校') === (s.school || '未填学校'))
-    lines.push(`| ${s.school || '未填学校'} | ${s.count} | ${isHome ? '本校基准' : ''} |`)
+  lines.push(...compareSection(brief.compare))
+
+  if (brief.compare.insights.length) {
+    lines.push('---')
+    lines.push('')
   }
-  lines.push('')
 
   // 本校单列一节，放在最前。
   // 对标的说服力来自「别人这么做，我们这么做」的并置，本校要是混在外校中间，
@@ -120,7 +215,7 @@ export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string 
   }
 
   // 分学校铺开：同一所学校的事放在一起，念的时候不用来回跳。
-  // 顺序跟上面的概览表一模一样（活动多的在前，同数量按校名），
+  // 顺序直接取上面那张对比表（本校之外按活动数降序），
   // 否则表里第一行和正文第一节对不上，读的人要来回确认是不是漏了。
   const bySchool = new Map<string, BenchBriefItem[]>()
   for (const item of brief.items) {
@@ -129,7 +224,7 @@ export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string 
     if (!bySchool.has(key)) bySchool.set(key, [])
     bySchool.get(key)!.push(item)
   }
-  const schoolOrder = brief.perSchool.map((s) => s.school || '未填学校')
+  const schoolOrder = brief.compare.schools.filter((s) => !s.isHome).map((s) => s.school)
   const ordered = [
     ...schoolOrder.filter((s) => bySchool.has(s)),
     ...[...bySchool.keys()].filter((s) => !schoolOrder.includes(s))
@@ -184,7 +279,9 @@ export function composeBrief(
     schoolCount: perSchool.filter((s) => s.school !== '未填学校').length,
     activityCount: items.length,
     perSchool,
-    items
+    items,
+    // 对比永远基于同一批条目：表里写九场、正文只列五场这种事不能出现
+    compare: buildCompare(items)
   }
   return { ...base, markdown: buildBriefMarkdown(base) }
 }
