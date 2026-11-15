@@ -132,6 +132,55 @@ export function markNotActivity(db: DatabaseSync, articleId: number): boolean {
 }
 
 /**
+ * 把一批「其实不是活动」的条目一次性否决。
+ *
+ * 放在一个事务里：中途出错要全部回滚。删一半留下另一半，比一处没删更麻烦——
+ * 用户看不出哪几条生效了，只能整库再查一遍。
+ */
+export function markNotActivityMany(db: DatabaseSync, articleIds: number[]): number {
+  const clean = [...new Set(articleIds.filter((n) => Number.isInteger(n) && n > 0))]
+  if (!clean.length) return 0
+  const marks = clean.map(() => '?').join(',')
+  db.exec('BEGIN')
+  try {
+    db.prepare(`DELETE FROM bench_activity WHERE article_id IN (${marks})`).run(...clean)
+    const info = db.prepare(`UPDATE bench_article SET is_activity = 0 WHERE id IN (${marks})`).run(...clean)
+    db.exec('COMMIT')
+    return Number(info.changes)
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
+
+/**
+ * 把已入库的活动连标题、学校、类型一起取出来，交给上层按现在的规则复查。
+ *
+ * 为什么不直接在 SQL 里筛：判定逻辑是一张会长大的词表（人物报道、候选人公示、
+ * 月度汇总都是后来才发现的形态），放在 TS 里才能被单元测试逐条钉住，
+ * 也才能在界面上说清「为什么这一条不算活动」。
+ */
+export function listActivityTitles(
+  db: DatabaseSync
+): { articleId: number; title: string; school: string; kind: string }[] {
+  const rows = db
+    .prepare(
+      `SELECT c.article_id, a.title, COALESCE(s.school, '') AS school, COALESCE(c.kind, '') AS kind
+         FROM bench_activity c
+         JOIN bench_article a ON a.id = c.article_id
+         LEFT JOIN bench_source s ON s.id = a.source_id
+        ORDER BY a.title`
+    )
+    .all() as unknown as { article_id: number; title: string; school: string; kind: string }[]
+  return rows.map((r) => ({
+    articleId: r.article_id,
+    title: r.title ?? '',
+    school: r.school,
+    kind: r.kind
+  }))
+}
+
+/**
  * 找出不属于任何已知学校的源。
  *
  * 判定只看一件事：这个号被归到哪个学校。学校空着（搜索时看不出归属），

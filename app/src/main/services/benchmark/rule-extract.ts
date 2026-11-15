@@ -54,24 +54,81 @@ const KIND_RULES: { kind: string; words: string[] }[] = [
 
 /** 一眼就知道不是活动的：招生、公示、任免这类，混进库里会污染统计 */
 const NOT_ACTIVITY = [
-  '招生简章', '录取名单', '拟录取', '公示', '任免', '任命', '表彰决定',
+  '招生简章', '录取名单', '拟录取', '任免', '任命', '表彰决定',
   '成绩查询', '四六级', '选课通知', '考试安排', '党课', '理论学习', '转发'
 ]
 
 /**
- * 新闻稿特征词（只看标题）。
+ * 标题说的不是「一场活动」，而是别的东西。四类，每类带一个能落到界面上的
+ * 原因——用户看到一条被剔除的推送，得知道凭什么。
  *
- * 判活动靠的是「标题里有没有活动类型词」，而「我院院长一行访问某校」这类稿子
- * 正文里常常顺带写了「座谈会」「交流会」，于是被抽成一场沙龙分享。
- * 这类条目进了简报，读者会以为对方学校真的办了这个活动。
- *
- * 只收几乎不会出现在活动预告里的词：标题带「一行访问」「述职」「喜报」的，
- * 基本都是事后报道而不是活动本身。
+ * 这份词表是拿库里 50 条实际标题逐条对出来的。原先只有十几个词（述职、喜报、
+ * 候选人），实测漏掉四成：「毕业生故事｜王宇瀚」被判成一场文艺演出，
+ * 「优秀学生标兵风采展示」被判成毕业季活动——只因为它们正文里出现了
+ * 「演出」「毕业季」。这类条目混进对比表，读者会以为对方学校一年办了五十场活动。
  */
-const NEWS_LIKE = [
-  '风采展示', '述职', '工作总结', '喜报', '荣获', '获奖',
-  '候选人', '一行访问', '走访', '洽谈', '签约', '揭牌', '获批', '名单'
+const OFF_TOPIC: { reason: string; words: string[] }[] = [
+  {
+    reason: '人物报道',
+    words: [
+      '毕业说', '毕业•记忆', '毕业·记忆', '毕业故事', '毕业生故事', '青春礼赞',
+      '青春榜样', '优秀毕业生', '人物志', '专访', '国奖'
+    ]
+  },
+  {
+    reason: '名单公示',
+    words: [
+      '名单', '公示', '揭晓', '候选人', '当选', '入选', '评选结果', '获奖', '荣获',
+      '喜报', '表彰', '标兵', '风采展示', '答辩'
+    ]
+  },
+  {
+    reason: '会议通报',
+    words: [
+      '述职', '全体大会', '顺利召开', '隆重召开', '例会', '换届', '选举', '学代会',
+      '研代会', '主席团', '工作报告', '热议'
+    ]
+  },
+  {
+    reason: '合集汇总',
+    words: ['总集篇', '一周活动', '活动预告汇总', '活动合集', '汇总', '速览', '一览']
+  },
+  {
+    reason: '招生与建制',
+    words: ['招生', '报考', '志愿填报', '学院介绍', '专业介绍', '院系介绍', '参访']
+  }
 ]
+
+/**
+ * 命中上面任何一类，但标题同时在说「一场活动怎么办」，就还它清白。
+ * 「优秀毕业生分享会」是真活动，「优秀毕业生胡豆豆」不是——区别就在后面这几个词。
+ */
+const EVENT_WORDS = [
+  '举办', '举行', '开幕', '开赛', '开讲', '上演', '展演', '演出', '晚会',
+  '报名', '招募', '招新', '讲座', '沙龙', '论坛', '大赛', '竞赛', '决赛',
+  '市集', '展览', '游园', '评比', '路演', '训练营', '工作坊', '开放日',
+  '见面会', '分享会', '交流会', '茶话会', '比赛', '典礼', '仪式', '派对',
+  '音乐会', '嘉年华', '艺术节', '文化节'
+]
+
+/** 以「如何 / 怎么」开头又问句的，基本都是介绍文、攻略文，不是活动预告 */
+const HOWTO_TITLE = /^(?:如何|怎么|怎样|什么是)/
+
+/**
+ * 判断标题讲的是不是一场活动。是活动返回 null，否则返回不该算作活动的原因。
+ *
+ * 只在标题上判。正文靠不住——「院长一行访问某校」的正文里写着座谈会，
+ * 「毕业生故事」的正文里写着毕业晚会，一放开就会把报道当成活动本身。
+ */
+export function offTopicReason(title: string): string | null {
+  const t = title || ''
+  if (!t) return null
+  if (HOWTO_TITLE.test(t) && /[？?]/.test(t)) return '说明文'
+  const hit = OFF_TOPIC.find((g) => g.words.some((w) => t.includes(w)))
+  if (!hit) return null
+  if (EVENT_WORDS.some((w) => t.includes(w))) return null
+  return hit.reason
+}
 
 const SECOND_NOTICE = [
   { words: ['改期', '延期', '时间调整', '推迟'], kind: 'reschedule' as const },
@@ -214,9 +271,33 @@ function findLocation(text: string): string {
   return name.length >= hint.length ? name : hint
 }
 
+/**
+ * 抽单位名时把下一个标签切掉。
+ *
+ * 公众号正文的换行常被压没了，原文是「主办方：校学生会协办方：羽毛球协会
+ * 02活动主题」，抓下来会连成一串。库里 30 条活动一条协办单位都抽不到，
+ * 一半原因就是这个：主办方那一条把「协办方」也吃了进去，字数到顶截断，
+ * 协办方那条正则却因为前面没有独立行首而落空。
+ */
+const UNIT_LABEL = /(?:主办|协办|承办|支持|指导|合作|活动主题|举办单位)/
+const UNIT_STOP = '\\n，。；;、丨|✦\\d（()）'
+
+function cleanUnit(raw: string): string {
+  return raw
+    .split(UNIT_LABEL)[0]
+    .replace(/\s+/g, '')
+    .replace(/[:：✦]+$/, '')
+    .trim()
+}
+
 function findOrganizer(text: string): string {
-  const explicit = text.match(/(?:主办单位|主办方|主办|承办单位|承办)\s*[:：]\s*([^\n，。；;]{2,30})/)
-  if (explicit) return explicit[1].trim()
+  const explicit = text.match(
+    new RegExp(`(?:主办单位|主办方|承办单位|承办方|承办)\\s*[:：]\\s*([^${UNIT_STOP}]{2,30})`)
+  )
+  if (explicit) {
+    const name = cleanUnit(explicit[1])
+    if (name) return name
+  }
   const m = text.match(/([\u4e00-\u9fa5]{2,12}(?:学生会|研究生会|团委|社团|协会))/)
   return m ? m[1] : ''
 }
@@ -241,11 +322,16 @@ function findJoin(text: string): string {
  */
 function findCoOrganizer(text: string): string {
   const explicit = text.match(
-    /(?:协办单位|承办单位|支持单位|合作单位|联合主办|联合承办)\s*[:：]?\s*([^\n，。；、]{2,24})/
+    new RegExp(
+      `(?:协办单位|协办方|承办单位|承办方|支持单位|合作单位|联合主办|联合承办)\\s*[:：]?\\s*([^${UNIT_STOP}]{2,24})`
+    )
   )
-  if (explicit) return explicit[1].replace(/\s+/g, '').trim()
+  if (explicit) {
+    const name = cleanUnit(explicit[1])
+    if (name) return name
+  }
   const joint = text.match(/与\s*([^\n，。；]{2,18}?)\s*(?:联合|共同)(?:举办|主办|承办)/)
-  if (joint) return joint[1].replace(/\s+/g, '').trim()
+  if (joint) return cleanUnit(joint[1])
   return ''
 }
 
@@ -422,7 +508,7 @@ export function extractByRules(input: {
 
   if (NOT_ACTIVITY.some((w) => input.title.includes(w))) return empty
   // 新闻稿比「不是活动」更隐蔽：它有类型词、有时间地点，只是它不是一场活动
-  if (NEWS_LIKE.some((w) => input.title.includes(w))) return empty
+  if (offTopicReason(input.title)) return empty
 
   const { kind, confidence } = pickKind(input.title, input.body)
   // 标题里没类型词、正文也没有，就不要硬凑成活动

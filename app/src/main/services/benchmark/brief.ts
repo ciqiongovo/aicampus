@@ -109,7 +109,7 @@ function compareSection(c: BenchCompare): string[] {
     // 列随数据走：某项不足两所学校有数据就整列不出现。
     // 摆一串「—」既占地方，又容易让人以为是我们没抽出来。
     const cols: { head: string; get: (s: (typeof solid)[number]) => string }[] = [
-      { head: '活动数', get: (s) => String(s.activities) }
+      { head: '活动数', get: (s) => (s.sessions < s.activities ? `${s.activities}/${s.sessions} 篇/场` : String(s.activities)) }
     ]
     if (c.coverage.scale >= 2) {
       cols.push(
@@ -183,7 +183,10 @@ export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string 
   lines.push(`# ${brief.title}`)
   lines.push('')
   lines.push(
-    `> 生成于 ${brief.generatedAt} · 覆盖 ${brief.schoolCount} 所学校 · ${brief.activityCount} 场活动`
+    `> 生成于 ${brief.generatedAt} · 覆盖 ${brief.schoolCount} 所学校 · ` +
+      (brief.sessionCount < brief.activityCount
+        ? `${brief.activityCount} 条记录（合并成 ${brief.sessionCount} 场）`
+        : `${brief.activityCount} 场活动`)
   )
   lines.push('')
 
@@ -273,15 +276,19 @@ export function composeBrief(
   const p = (n: number): string => String(n).padStart(2, '0')
   const generatedAt = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())} ${p(now.getHours())}:${p(now.getMinutes())}`
 
+  // 对比永远基于同一批条目：表里写九场、正文只列五场这种事不能出现
+  const compare = buildCompare(items)
+
   const base: Omit<BenchBrief, 'markdown'> = {
     title: `${filterLabel}对标简报`,
     generatedAt,
     schoolCount: perSchool.filter((s) => s.school !== '未填学校').length,
     activityCount: items.length,
+    sessionCount: compare.schools.reduce((n, s) => n + s.sessions, 0),
     perSchool,
     items,
     // 对比永远基于同一批条目：表里写九场、正文只列五场这种事不能出现
-    compare: buildCompare(items)
+    compare
   }
   return { ...base, markdown: buildBriefMarkdown(base) }
 }

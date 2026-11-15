@@ -275,6 +275,70 @@ run('外校不足两所时不给「外校平均」，退回描述性结论', () 
   assert.ok(!leadLine || !/外校中位/.test(leadLine), String(leadLine))
 })
 
+console.log('\n== 篇数与场次 ==')
+
+// 上海大学 2025 级开学典礼发了三条：预告、举行、回顾。按篇数是 3，按场次是 1。
+const dup = buildCompare([
+  item({ school: '上海大学', kind: '迎新晚会', startAt: '2025-09-19', title: '敬请期待！开学典礼预告来啦' }),
+  item({ school: '上海大学', kind: '迎新晚会', startAt: '2025-09-19', title: '开学典礼举行' }),
+  item({ school: '上海大学', kind: '迎新晚会', startAt: '2025-09-19', title: '开学典礼回顾' }),
+  item({ school: '上海大学', kind: '迎新晚会', startAt: '2025-09-19 18:30:00', title: '同一场，带具体时刻' }),
+  item({ school: '上海大学', kind: '迎新晚会', startAt: '2024-09-20', title: '上一年的迎新晚会' })
+])
+
+run('同一场活动的多篇推文合并成一场', () => {
+  const s = dup.schools.find((x) => x.school === '上海大学')
+  assert.equal(s.activities, 5)
+  assert.equal(s.sessions, 2, '2025 四条合并成一场，2024 一条，共两场')
+})
+
+run('没写日期的各算一场，不硬合并', () => {
+  const c = buildCompare([
+    item({ school: '复旦大学', kind: '体育赛事', startAt: null, title: '新生杯篮球赛' }),
+    item({ school: '复旦大学', kind: '体育赛事', startAt: null, title: '「枫云决」羽毛球赛' })
+  ])
+  const s = c.schools.find((x) => x.school === '复旦大学')
+  assert.equal(s.sessions, 2, '两场都没写日期，只能各算一场')
+})
+
+run('篇数与场次不一致时，结论里要说出来', () => {
+  const line = dup.insights.find((x) => x.startsWith('篇数与场次'))
+  assert.ok(line, '缺少篇数/场次说明')
+  assert.ok(/上海大学 5 篇 \/ 2 场/.test(line), line)
+})
+
+run('篇数等于场次时不提这一句', () => {
+  const c = buildCompare([
+    item({ school: '同济大学', kind: '迎新晚会', startAt: '2025-09-01' }),
+    item({ school: '上海大学', kind: '迎新晚会', startAt: '2025-09-02' })
+  ])
+  assert.ok(!c.insights.some((x) => x.startsWith('篇数与场次')))
+})
+
+console.log('\n== 样本构成 ==')
+
+run('某类占八成时，结论要说明这是采集方向不是各校偏好', () => {
+  const many = []
+  for (let i = 0; i < 8; i++) {
+    many.push(item({ school: '复旦大学', kind: '迎新晚会', startAt: `2025-09-0${i + 1}` }))
+  }
+  many.push(item({ school: '复旦大学', kind: '体育赛事', startAt: '2025-10-01' }))
+  many.push(item({ school: '同济大学', kind: '体育赛事', startAt: '2025-10-02' }))
+  const c = buildCompare(many)
+  const line = c.insights.find((x) => x.startsWith('样本构成'))
+  assert.ok(line, '缺少样本构成说明')
+  assert.ok(/80%/.test(line), line)
+})
+
+run('类型分散时不说样本构成', () => {
+  const c = buildCompare([
+    item({ school: '复旦大学', kind: '迎新晚会', startAt: '2025-09-01' }),
+    item({ school: '复旦大学', kind: '体育赛事', startAt: '2025-09-02' }),
+    item({ school: '同济大学', kind: '讲座与沙龙', startAt: '2025-09-03' })
+  ])
+  assert.ok(!c.insights.some((x) => x.startsWith('样本构成')))
+})
+
 console.log('\n== 简报与报告 ==')
 
 const brief = composeBrief(items, '示例', new Date('2025-10-01T10:00:00'))

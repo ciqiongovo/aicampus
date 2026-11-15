@@ -667,3 +667,77 @@
   font-size: 12.5px;
   line-height: 1.8;
 }
+
+/* ---------- 数据体检 · 复查活动判定 ---------- */
+
+.bench-off {
+  margin-bottom: 22px;
+  padding: 14px 16px 10px;
+  border: 1px solid color-mix(in srgb, var(--danger, #d4380d) 26%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger, #d4380d) 3%, transparent);
+}
+
+.bench-off-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bench-off-note {
+  margin: 6px 0 10px;
+  font-size: 12px;
+  line-height: 1.85;
+}
+
+/* 一行标题 + 理由标签：勾选框要在最左边对齐，否则每条缩进都不一样 */
+.bench-off-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.bench-off-row:last-child {
+  border-bottom: none;
+}
+
+.bench-off-row .bench-audit-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.bench-off-sub {
+  margin: 18px 0 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--text-3);
+}
+
+/* 统计条里的告警链接：它比数字本身更该被看见，所以给一点颜色 */
+.bench-warn-link {
+  color: var(--danger, #d4380d);
+  cursor: pointer;
+  border-bottom: 1px dashed color-mix(in srgb, var(--danger, #d4380d) 45%, transparent);
+}
+
+.bench-warn-link:hover {
+  color: var(--danger, #d4380d);
+  border-bottom-style: solid;
+}
+
+/* 「8/7」里的场次：比篇数淡一档，读的时候先看到篇数，需要时再看场次 */
+.bench-slash {
+  color: var(--text-3);
+  font-weight: 400;
+}

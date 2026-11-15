@@ -156,6 +156,23 @@ function sortBuckets(map: Map<string, number>, total: number): BenchCompareBucke
 }
 
 /**
+ * 一场活动发了几篇推文，就只算一场。
+ *
+ * 实测：上海大学 2025 级开学典礼暨迎新晚会发了三条——「预告来啦」「举行」
+ * 「回顾」，按篇数算是三场，按场次是一场。日期为空的各算一场：
+ * 复旦两场体育赛（篮球赛、羽毛球赛）都没写日期，硬按「无日期」合并
+ * 会把两场不同的比赛算成一场，那比虚高更糟。
+ */
+function countSessions(list: BenchBriefItem[]): number {
+  const seen = new Set<string>()
+  list.forEach((item, i) => {
+    const day = (item.startAt ?? '').slice(0, 10)
+    seen.add(day ? `${bucketKind(item.kind)}|${day}` : `#${i}`)
+  })
+  return seen.size
+}
+
+/**
  * 主入口：把简报条目算成对比数据。
  *
  * 传进来的 items 是当前筛选结果，所以「对比」永远和用户眼前看到的那批一致，
@@ -181,6 +198,7 @@ export function buildCompare(items: BenchBriefItem[]): BenchCompare {
         school,
         isHome,
         activities: list.length,
+        sessions: countSessions(list),
         scaleCoverage: 0,
         medianScale: null,
         medianLeadDays: null,
@@ -211,6 +229,7 @@ export function buildCompare(items: BenchBriefItem[]): BenchCompare {
       school,
       isHome,
       activities: list.length,
+      sessions: countSessions(list),
       scaleCoverage: scales.length / list.length,
       medianScale: median(scales),
       medianLeadDays: median(leads),
@@ -242,9 +261,11 @@ export function buildCompare(items: BenchBriefItem[]): BenchCompare {
 
   const solid = schools.filter((s) => !s.thin)
 
+  const kinds = sortBuckets(kindMap, items.length)
+
   return {
     schools,
-    kinds: sortBuckets(kindMap, items.length),
+    kinds,
     promos: sortBuckets(promoMap, items.length),
     coverage: {
       scale: solid.filter((s) => s.medianScale !== null).length,
@@ -253,7 +274,7 @@ export function buildCompare(items: BenchBriefItem[]): BenchCompare {
       coHost: solid.filter((s) => s.coHostRate > 0).length,
       week: solid.filter((s) => s.medianWeek !== null).length
     },
-    insights: makeInsights(schools, items.length)
+    insights: makeInsights(schools, items.length, kinds)
   }
 }
 
@@ -293,11 +314,40 @@ const dayWord = (n: number): string => (n >= 14 ? `约 ${Math.round(n / 7)} 周`
  *
  * 顺序按「能不能照做」排：规模与节奏是能直接改的，周次是学期安排，合办是组织形式。
  */
-function makeInsights(schools: BenchCompareSchool[], total: number): string[] {
+function makeInsights(
+  schools: BenchCompareSchool[],
+  total: number,
+  kinds: BenchCompareBucket[]
+): string[] {
   const out: string[] = []
   if (!total) return ['库里没有符合条件的活动，先补采几个公众号再来看对比。']
 
   const solid = schools.filter((s) => !s.thin)
+
+  /*
+   * 0. 样本构成。
+   *
+   * 库里 30 场活动有 24 场是迎新与毕业——这不是「各校都爱办迎新」，
+   * 是我们采的那批文章本来就围着迎新季转。不说这一句，读者会把
+   * 「最常办 = 迎新」当成学校的偏好，进而推出一堆站不住的结论。
+   */
+  const top = kinds[0]
+  if (top && top.share >= 0.6 && kinds.length > 1) {
+    out.push(
+      `样本构成：${total} 场里 ${top.count} 场是「${top.label}」（${Math.round(top.share * 100)}%）。` +
+        `这个比例说明的是这批文章围着什么采的，不是各校的偏好——要看类型偏好，得把别的类型也采一些。`
+    )
+  }
+
+  // 同一场活动发了多篇推文时，篇数和场次对不上，这个差别要自己说出来
+  const dupSchools = schools.filter((s) => s.sessions < s.activities)
+  if (dupSchools.length) {
+    const names = dupSchools.map((s) => `${s.school} ${s.activities} 篇 / ${s.sessions} 场`).join('、')
+    out.push(
+      `篇数与场次：${names}。同一场活动的预告、招募、回顾会各算一条；` +
+        `场次按「类型 + 日期」合并，没写日期的各算一场（两场都没写日期就分不出来）。`
+    )
+  }
 
   // 1. 规模
   const scale = versus(schools, (s) => s.medianScale)

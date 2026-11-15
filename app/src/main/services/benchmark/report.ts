@@ -94,7 +94,7 @@ function bars(title: string, data: { label: string; count: number; share: number
           (r) => `<div class="bar-row">
         <span class="bar-label">${esc(r.label)}</span>
         <span class="bar-track"><span class="bar-fill" style="width:${Math.max((r.count / max) * 100, 2).toFixed(1)}%"></span></span>
-        <span class="bar-val">${r.count}<span class="unit">场</span></span>
+        <span class="bar-val">${r.count}<span class="unit">条</span></span>
       </div>`
         )
         .join('')}
@@ -113,10 +113,10 @@ function schoolTable(compare: BenchCompare): string {
   if (!solid.length) return ''
   const cov = compare.coverage
 
-  const head: string[] = ['<th>学校</th>', '<th class="n">活动</th>']
+  const head: string[] = ['<th>学校</th>', '<th class="n" title="篇数；斜杠后是按类型+日期合并后的场次（同一场活动的预告、招募、回顾各算一篇）">活动</th>']
   const cell = (s: BenchCompareSchool): string[] => [
     `<td class="name">${esc(s.school)}${s.isHome ? '<span class="tag">本校</span>' : ''}</td>`,
-    `<td class="n">${s.activities}</td>`
+    `<td class="n">${s.sessions < s.activities ? `${s.activities}<span class="slash">/${s.sessions}</span>` : s.activities}</td>`
   ]
 
   const cols: { th: string; td: (s: BenchCompareSchool) => string }[] = []
@@ -167,7 +167,7 @@ function schoolTable(compare: BenchCompare): string {
       <thead><tr>${head.join('')}</tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <p class="note">中位数只按「原文写明」的条目算，旁边一列是覆盖率：18 场里只有 2 场写了人数时，这个中位数不能和写满 18 场的学校并排看待。没有出现的列，说明有这项数据的学校不足两所。</p>
+    <p class="note">中位数只按「原文写明」的条目算，旁边一列是覆盖率：18 场里只有 2 场写了人数时，这个中位数不能和写满 18 场的学校并排看待。没有出现的列，说明有这项数据的学校不足两所。活动数写成「6/3」的地方，是 6 篇推文合并成 3 场：同一场活动的预告、招募、回顾各算一条。</p>
   </section>`
 }
 
@@ -213,6 +213,7 @@ table.grid td.name{font-weight:600; white-space:nowrap; overflow:hidden; text-ov
 table.grid td.kind{color:var(--ink-2)}
 table.grid tr.home td{background:#faf8f4}
 table.grid tr.home td.name{box-shadow:inset 3px 0 0 var(--accent)}
+table.grid td .slash{color:var(--ink-3); font-weight:400}
 .tag{font-size:10.5px; color:var(--accent); border:1px solid currentColor; border-radius:2px;
   padding:0 4px; margin-left:6px; font-weight:400; vertical-align:1px}
 .unit{color:var(--ink-3); font-size:11px; margin-left:1px}
@@ -282,7 +283,7 @@ export function buildReportHtml(brief: BenchBrief): string {
   const otherBlocks = schools
     .map(
       (school) => `<section class="school">
-      <div class="school-head"><span class="nm">${esc(school)}</span><span class="ct">${bySchool.get(school)!.length} 场</span></div>
+      <div class="school-head"><span class="nm">${esc(school)}</span><span class="ct">${bySchool.get(school)!.length} 条</span></div>
       ${bySchool.get(school)!.map((it, i) => itemCard(it, i + 1)).join('')}
     </section>`
     )
@@ -299,7 +300,7 @@ export function buildReportHtml(brief: BenchBrief): string {
 <body>
 <div class="wrap">
   <h1>${esc(brief.title)}</h1>
-  <div class="sub">生成于 ${esc(brief.generatedAt)}　·　覆盖 ${brief.schoolCount} 所学校　·　${brief.activityCount} 场活动</div>
+  <div class="sub">生成于 ${esc(brief.generatedAt)}　·　覆盖 ${brief.schoolCount} 所学校　·　${brief.sessionCount < brief.activityCount ? `${brief.activityCount} 条记录（合并成 ${brief.sessionCount} 场）` : `${brief.activityCount} 场活动`}</div>
 
   <h2>先说结论</h2>
   <ol class="findings">

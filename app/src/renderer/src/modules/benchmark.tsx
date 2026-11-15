@@ -3,6 +3,7 @@ import {
   Alert,
   App as AntApp,
   Button,
+  Checkbox,
   Drawer,
   Empty,
   Input,
@@ -120,10 +121,18 @@ function BenchmarkPage(): JSX.Element {
   const [newSchool, setNewSchool] = useState('')
   const [newCategory, setNewCategory] = useState<BenchSourceCategory>('student_union')
 
-  /** 数据体检结果：只在打开「公众号源」抽屉时拉一次，平时不占内存 */
+  /**
+   * 数据体检结果。
+   *
+   * 一开始只在打开抽屉时拉，后来改了：里面「有 20 条不像活动」这件事
+   * 恰恰是必须先让人看见的——藏进抽屉，用户会拿被污染的 50 条去做判断。
+   * 两张小表各扫一遍，代价可以忽略。
+   */
   const [audit, setAudit] = useState<BenchAuditResult | null>(null)
   const [purgeOpen, setPurgeOpen] = useState(false)
   const [purgePicked, setPurgePicked] = useState<number[]>([])
+  /** 待剔除的「不像活动」条目（articleId） */
+  const [offPicked, setOffPicked] = useState<number[]>([])
 
   /** 账号清单抽屉：看某所学校打算找哪些号、哪些找着了 */
   const [accountsSchool, setAccountsSchool] = useState<BenchSchoolInfo | null>(null)
@@ -211,9 +220,17 @@ function BenchmarkPage(): JSX.Element {
   }, [load])
 
   useEffect(() => {
-    if (!sourcesOpen) return
-    void window.api.benchAudit().then(setAudit)
-  }, [sourcesOpen])
+    void window.api
+      .benchAudit()
+      .then((a) => {
+        setAudit(a)
+        // 默认全选：二十条一条条点太累了，而这里列出来的都是规则已经否掉的
+        // （人物报道、候选人公示、月度汇总），看着不对的可以手工取消
+        setOffPicked(a.offTopic.map((x) => x.articleId))
+      })
+      .catch(() => undefined)
+    // stats.activities 变化意味着库里的活动变了（采集、抽取、剔除），要重判
+  }, [sourcesOpen, stats?.activities])
 
   // 查找进度由主进程推过来：一次查找要跑几十秒，没有反馈用户会以为卡死
   useEffect(() => {
@@ -494,7 +511,7 @@ function BenchmarkPage(): JSX.Element {
       const next = await window.api.benchBrief(filter)
       setBrief(next)
       return next.activityCount
-        ? `简报已生成：${next.schoolCount} 所学校、${next.activityCount} 场活动`
+        ? `简报已生成：${next.schoolCount} 所学校、${next.activityCount} 条记录`
         : '没有符合条件的活动，可以先放宽时间范围或补采几个公众号'
     })
   }
@@ -627,6 +644,21 @@ function BenchmarkPage(): JSX.Element {
     })
   }
 
+  const doDropOffTopic = (): void => {
+    if (!offPicked.length) {
+      message.info('没勾任何条，什么都不会动')
+      return
+    }
+    void run('offtopic', async () => {
+      const n = await window.api.benchMarkNotActivityMany(offPicked)
+      setOffPicked([])
+      setAudit(await window.api.benchAudit())
+      return n
+        ? `已剔除 ${n} 条，简报和对比不再计入；原文和链接都还在库里`
+        : '这几条已经不在了，可能刚清过'
+    })
+  }
+
   const doCompare = (): void => {
     if (picked.length < 2) {
       message.info('至少勾两篇才能比')
@@ -750,7 +782,7 @@ function BenchmarkPage(): JSX.Element {
     <div className="bench">
       <div className="bench-head">
         <div className="bench-title">
-          <BookOutlined /> 兄弟高校公众号
+          <BookOutlined /> 跨校活动对标
           <span className="bench-title-sub">
             本校：{homeSchool?.name ?? '未设置'}
             {homeSchool && homeSchool.articleCount === 0 ? '（还没采）' : ''}
@@ -780,6 +812,15 @@ function BenchmarkPage(): JSX.Element {
                 <span className="bench-muted">
                   当前筛出 <b>{filteredActivities}</b>（
                   {range === 'year' ? '近一年' : range === 'half' ? '近半年' : '全部'}）
+                </span>
+              ) : null}
+              {/*
+                库里的活动数是「抽取成功」的数，不等于「真的是活动」的数。
+                差的那部分必须当场说出来——不说，读者会拿 50 这个数字去推结论。
+              */}
+              {audit && audit.offTopic.length ? (
+                <span className="bench-warn-link" onClick={() => setSourcesOpen(true)}>
+                  其中 <b>{audit.offTopic.length}</b> 条像别的（点这里复查）
                 </span>
               ) : null}
               <span className="bench-muted">原文已删 {stats.deleted}</span>
@@ -999,8 +1040,11 @@ function BenchmarkPage(): JSX.Element {
           >
             并排对比{picked.length ? `（${picked.length}）` : ''}
           </Button>
-          <Button onClick={() => setSourcesOpen(true)}>
-            公众号源（{stats?.sources ?? 0}）
+          <Button
+            danger={!!audit?.offTopic.length}
+            onClick={() => setSourcesOpen(true)}
+          >
+            数据体检{audit?.offTopic.length ? `（${audit.offTopic.length} 条待复查）` : ''}
           </Button>
         </Space>
 
@@ -1248,7 +1292,8 @@ function BenchmarkPage(): JSX.Element {
                 覆盖 <b>{brief.schoolCount}</b> 所学校
               </span>
               <span>
-                共 <b>{brief.activityCount}</b> 场活动
+                共 <b>{brief.activityCount}</b> 条记录
+                {brief.sessionCount < brief.activityCount ? <span className="bench-muted">（合并成 {brief.sessionCount} 场）</span> : null}
               </span>
               <span className="bench-muted">生成于 {brief.generatedAt}</span>
             </div>
@@ -1354,8 +1399,71 @@ function BenchmarkPage(): JSX.Element {
         ) : null}
       </Drawer>
 
-      {/* ---------- 公众号源 ---------- */}
-      <Drawer open={sourcesOpen} width={760} onClose={() => setSourcesOpen(false)} title="公众号源">
+      {/* ---------- 数据体检 ---------- */}
+      <Drawer open={sourcesOpen} width={780} onClose={() => setSourcesOpen(false)} title="数据体检">
+        {audit && audit.offTopic.length ? (
+          <div className="bench-off">
+            <div className="bench-off-head">
+              <span>
+                按现在的规则复查，有 <b>{audit.offTopic.length}</b> 条已入库的条目不像一场活动
+              </span>
+              <Space size={6}>
+                <Button
+                  size="small"
+                  onClick={() =>
+                    setOffPicked(
+                      offPicked.length === audit.offTopic.length
+                        ? []
+                        : audit.offTopic.map((x) => x.articleId)
+                    )
+                  }
+                >
+                  {offPicked.length === audit.offTopic.length ? '全不选' : '全选'}
+                </Button>
+                <Button
+                  size="small"
+                  danger
+                  loading={busy === 'offtopic'}
+                  disabled={!offPicked.length}
+                  onClick={doDropOffTopic}
+                >
+                  剔除选中的 {offPicked.length} 条
+                </Button>
+              </Space>
+            </div>
+            <div className="bench-muted bench-off-note">
+              「毕业生故事」「候选人风采展示」「一周活动预告」这类稿子标题里也有人和
+              时间，抽取时被当成活动算进了库——它们一进对比表，「最常办的类型」
+              和「有协办的比例」就跟着歪。剔除只删抽取结果，原文和链接都留着，
+              随时能点回原文核对；拿不准的就别勾。
+            </div>
+            <div className="bench-audit-list">
+              {audit.offTopic.map((x) => (
+                <label key={x.articleId} className="bench-audit-row bench-off-row">
+                  <Checkbox
+                    checked={offPicked.includes(x.articleId)}
+                    onChange={(e) =>
+                      setOffPicked((prev) =>
+                        e.target.checked
+                          ? [...prev, x.articleId]
+                          : prev.filter((id) => id !== x.articleId)
+                      )
+                    }
+                  />
+                  <div className="bench-audit-main">
+                    <span className="bench-audit-name">{x.title}</span>
+                    <span className="bench-audit-sample">
+                      {x.school || '未分学校'} · 现被判为 {x.kind || '—'}
+                    </span>
+                  </div>
+                  <Tag>{x.reason}</Tag>
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="bench-off-sub">公众号源</div>
         <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
           这里列的是已经确认存在的公众号。名单本身不影响采集——采集的起点是链接——
           但它决定「这一篇算哪个学校的」，简报和对比都按这个分组。
@@ -1693,7 +1801,25 @@ function ComparePanel({ brief }: { brief: BenchBrief }): JSX.Element {
         </>
       )
     },
-    { title: '活动', dataIndex: 'activities', width: 64, align: 'right' }
+    {
+      title: '活动',
+      dataIndex: 'activities',
+      width: 78,
+      align: 'right',
+      // 同一场活动发预告、招募、回顾三篇时会算成三条，按篇数看就虚高。
+      // 斜杠后面是合并后的场次；两者相同的就不显示，省得每格都挂个 /6
+      render: (v: number, r) =>
+        r.sessions < v ? (
+          <Tooltip title={`${v} 篇推文，合并同一场的预告 / 招募 / 回顾后是 ${r.sessions} 场`}>
+            <span>
+              {v}
+              <span className="bench-slash">/{r.sessions}</span>
+            </span>
+          </Tooltip>
+        ) : (
+          v
+        )
+    }
   ]
 
   if (cov.scale >= 2) {
@@ -1801,7 +1927,8 @@ function ComparePanel({ brief }: { brief: BenchBrief }): JSX.Element {
 
 export const benchmarkModule: ModuleManifest = {
   id: 'benchmark',
-  title: '公众号',
+  // 导航上一个词就够：「公众号」只说了信息来源，说的是这件软件干什么
+  title: '对标',
   icon: <BookOutlined />,
   route: '/benchmark',
   enabled: true,

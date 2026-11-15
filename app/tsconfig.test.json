@@ -51,6 +51,7 @@
     "src/shared/benchmark.ts",
     "src/shared/schools.ts",
     "src/main/services/benchmark/compare.ts",
+    "src/main/services/benchmark/rule-extract.ts",
     "src/main/services/benchmark/brief.ts",
     "src/main/services/benchmark/report.ts",
     "src/renderer/src/modules/keywordCloudLayout.ts"

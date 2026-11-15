@@ -38,7 +38,8 @@ export const BENCH_IPC = {
   benchAudit: 'bench:audit',
   benchPurgeSources: 'bench:purge-sources',
   benchSourceSchool: 'bench:source-school',
-  benchMarkNotActivity: 'bench:mark-not-activity'
+  benchMarkNotActivity: 'bench:mark-not-activity',
+  benchMarkNotActivityMany: 'bench:mark-not-activity-many'
 } as const
 
 /**
@@ -312,10 +313,28 @@ export interface BenchSuspiciousSource {
   sample: string
 }
 
+/**
+ * 一条被当前规则判定为「不像活动」的条目。
+ *
+ * 库里的活动是抽取当时判的，规则后来会变严（人物报道、候选人公示、月度汇总
+ * 都是一开始漏掉的形态）。已经抽过的条目不会自动重判——那等于没打招呼就删人数据——
+ * 所以列出来让人自己决定。
+ */
+export interface BenchSuspiciousActivity {
+  articleId: number
+  title: string
+  school: string
+  kind: string
+  /** 为什么判它不像一场活动：人物报道 / 名单公示 / 会议通报 / 合集汇总 / 招生与建制 / 说明文 */
+  reason: string
+}
+
 export interface BenchAuditResult {
   suspicious: BenchSuspiciousSource[]
   /** 这些源名下的文章总数，用于「有 N 篇会被算错学校」那句提示 */
   articleCount: number
+  /** 已入库、但按现在的规则不算活动的那几条 */
+  offTopic: BenchSuspiciousActivity[]
 }
 
 export interface BenchStats {
@@ -377,6 +396,14 @@ export interface BenchBrief {
   /** 覆盖的学校数 / 活动数 */
   schoolCount: number
   activityCount: number
+  /**
+   * 合并同一场活动后的场次数。
+   *
+   * 一场迎新晚会会发预告、招募、回顾三篇，篇数会比场次多。
+   * 两者不同时，简报头部会写成「30 条记录（合并成 26 场）」，
+   * 免得读者拿篇数去推「人家一年办了三十场」。
+   */
+  sessionCount: number
   /** 按学校分组的条数，用于概览那一段 */
   perSchool: { school: string; count: number }[]
   items: BenchBriefItem[]
@@ -399,6 +426,14 @@ export interface BenchCompareSchool {
   school: string
   isHome: boolean
   activities: number
+  /**
+   * 按「类型 + 日期」合并后的场次。
+   *
+   * 同一场迎新晚会会发预告、招募、回顾三篇，按篇数算就是三场。
+   * 日期为空的各算一场——复旦两场体育赛都没写日期，硬合并会把
+   * 两场不同的比赛算成一场。所以篇数和场次并排给，不替读者做减法。
+   */
+  sessions: number
   /** 原文里有明确人数数字的占比 */
   scaleCoverage: number
   /** 人数中位数；没有可用数字时为 null */
@@ -524,6 +559,11 @@ export interface BenchApi {
    * 原文和链接都还在库里。
    */
   benchMarkNotActivity(articleId: number): Promise<boolean>
+  /**
+   * 批量否决（数据体检里「按现在的规则复查」用的那个勾选清理）。
+   * 返回实际改动的条数——传进来的 id 里有已经被删的，不该算进结果。
+   */
+  benchMarkNotActivityMany(articleIds: number[]): Promise<number>
   /**
    * 订阅「按学校查找」的进度。返回取消订阅的函数。
    *

@@ -153,6 +153,12 @@ export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkSe
     return service.markNotActivity(aid)
   })
 
+  ipcMain.handle(BENCH_IPC.benchMarkNotActivityMany, (_e, ids: unknown) =>
+    service.markNotActivityMany(
+      Array.isArray(ids) ? ids.map((x) => Number(x)).filter((n) => Number.isInteger(n) && n > 0) : []
+    )
+  )
+
   ipcMain.handle(BENCH_IPC.benchSourceSchool, (_e, id: unknown, school: unknown) => {
     const sid = Number(id)
     if (!Number.isInteger(sid) || sid <= 0) return false

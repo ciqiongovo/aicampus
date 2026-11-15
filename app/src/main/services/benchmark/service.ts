@@ -22,6 +22,7 @@ import type {
   BenchProspectInfo,
   BenchSchoolInfo,
   BenchAuditResult,
+  BenchSuspiciousActivity,
   BenchSourceCategory,
   BenchSourceInfo,
   BenchStats
@@ -40,7 +41,7 @@ import type { SettingsStore } from '../../store/settings'
 import * as dao from '../../db/dao/benchmarkDao'
 import { composeBrief } from './brief'
 import { buildReportHtml } from './report'
-import { extractByRules } from './rule-extract'
+import { extractByRules, offTopicReason } from './rule-extract'
 import { fetchArticle } from './fetcher'
 import { VERIFY_BLOCKED } from './page'
 import { extractActivity } from './extractor'
@@ -242,8 +243,30 @@ export class BenchmarkService {
     const suspicious = dao.auditSources(this.db, allowed)
     return {
       suspicious,
-      articleCount: suspicious.reduce((n, s) => n + s.articleCount, 0)
+      articleCount: suspicious.reduce((n, s) => n + s.articleCount, 0),
+      offTopic: this.auditActivities()
     }
+  }
+
+  /**
+   * 按现在的词表复查已入库的活动。
+   *
+   * 只查不删：库里的判定是抽取当时做的，规则后来才变严。自动重判等于没打招呼
+   * 就动用户的数据，而且规则也会误伤——「优秀毕业生分享会」和
+   * 「优秀毕业生胡豆豆」只差几个字，机器分不清的地方要留给人看。
+   */
+  private auditActivities(): BenchSuspiciousActivity[] {
+    return dao
+      .listActivityTitles(this.db)
+      .map((row) => ({ row, reason: offTopicReason(row.title) }))
+      .filter((x): x is { row: (typeof x)['row']; reason: string } => !!x.reason)
+      .map((x) => ({
+        articleId: x.row.articleId,
+        title: x.row.title,
+        school: x.row.school,
+        kind: x.row.kind,
+        reason: x.reason
+      }))
   }
 
   purgeSources(ids: number[]): { articles: number; sources: number } {
@@ -252,6 +275,10 @@ export class BenchmarkService {
 
   markNotActivity(articleId: number): boolean {
     return dao.markNotActivity(this.db, articleId)
+  }
+
+  markNotActivityMany(articleIds: number[]): number {
+    return dao.markNotActivityMany(this.db, articleIds)
   }
 
   setSourceSchool(id: number, school: string): boolean {
