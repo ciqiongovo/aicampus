@@ -1,0 +1,68 @@
+name: 构建并发布 Windows 软件
+
+# 本机上传大文件到 Release 会断连，所以打包与发布都在 GitHub 的 Windows 机器上进行。
+# 推到 main 后自动生成最新的单文件 exe，别人从 Releases 页下载即可，不用装任何环境。
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/build-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 安装依赖
+        working-directory: app
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 打包单文件 exe
+        working-directory: app
+        run: pnpm run dist:portable
+
+      - name: 准备发布文件与校验和
+        id: pack
+        shell: pwsh
+        run: |
+          $src = "app/release/ZhiShu-1.0.0-portable.exe"
+          $dst = "app/release/ZhiShu-1.0.0.exe"
+          Copy-Item $src $dst -Force
+          $h = (Get-FileHash $dst -Algorithm SHA256).Hash.ToLower()
+          "sha=$h" >> $env:GITHUB_OUTPUT
+          Write-Host "发布文件 $dst，SHA-256 $h"
+
+      - name: 发布到 Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: 知枢 1.0.0
+          files: app/release/ZhiShu-1.0.0.exe
+          body: |
+            # 知枢 1.0.0 · Windows 版
+
+            下载下面**这一个文件**，双击就能用：不需要安装、不需要装 Node、不需要联网。
+
+            - 首次启动自带示例数据（13 所学校 / 39 场活动），打开即可看到跨校对标结果
+            - 数据写在 `%APPDATA%\ZhiShu`，不覆盖电脑上任何已有文件
+            - 源码就在本仓库，改完代码由这个工作流自动重新打包
+
+            exe 未购买代码签名证书，Windows 首次打开若提示「已保护你的电脑」，点「更多信息」→「仍要运行」。
+
+            SHA-256: `${{ steps.pack.outputs.sha }}`
+
+            只想看结论、不想装软件：仓库里的 `output/知枢-对标报告-示例.html` 双击即可打开。
