@@ -94,13 +94,14 @@ test('v0.3 schema12 upgrades replay v13-v27 additively and leave emails, analysi
   assert.equal(f.db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v, 12)
   f.db.close()
   f.db = openDatabase(f.path)
-  assert.equal(f.db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v, 29)
+  // 版本号只断言「至少到 29」：后面加了 v30–v32 是对标库，跟这封邮件的迁移无关
+  assert.ok(f.db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v >= 29)
   assert.equal(f.db.prepare('SELECT summary FROM email_analysis WHERE email_id = ?').get(id).summary, '旧分析摘要')
   assert.equal(getEmailListItem(f.db, id).subject, 'needle project 1')
   assert.deepEqual(getEmailListItem(f.db, id).tags, [])
   assert.equal(readFileSync(legacyPath, 'utf8'), legacy)
   assert.equal(readdirSync(f.dir).filter(name => name.endsWith('.bak')).length, 1)
-  assert.equal(migrate(f.db), 29)
+  assert.ok(migrate(f.db) >= 29)
 })
 
 test('definitions trim, reject case/NFKC duplicates, validate lengths and hostile IDs', t => {

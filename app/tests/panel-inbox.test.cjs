@@ -588,7 +588,8 @@ test('v25 clears mail decisions and learning while preserving saved material and
   const newOverview = await panel.panelOverview(db, store, 'email')
   assert.ok(newOverview.recommendations.some(row => row.infoId === waiting.infoId))
   assert.ok(!newOverview.recommendations.some(row => row.infoId === handled.infoId))
-  assert.equal(migrate(db), 29)
+  // 只断言「迁移回落到最新版」：后面加的 v30–v32 是对标库，与这里测的清空逻辑无关
+  assert.ok(migrate(db) >= 29)
 })
 
 test('recent unread mail with deadline stays urgent and focus despite low AI priority', async t => {

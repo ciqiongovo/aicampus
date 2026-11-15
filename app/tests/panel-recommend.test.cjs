@@ -25,6 +25,22 @@ const { DEFAULT_SETTINGS } = require('../.test-out/shared/types.js')
 const TMP_DIR = join(__dirname, '..', '.test-out', 'panel-testdb')
 const DB_FILE = join(TMP_DIR, 'panel-test.db')
 
+/**
+ * 用例里的日期一律相对今天算。
+ *
+ * 这几条测的是「有截止时间就放待办、有日程时间就排日程」。写死 2026-10-23
+ * 这类日期，过一个月它就变成「截止已过」，推荐动作从 todo 掉成 archive，
+ * 一套测试全红——而代码一行没错。时间不该是测试的隐藏输入。
+ */
+function daysFromNow(days, hourUtc = 2) {
+  const d = new Date(Date.now() + days * 86_400_000)
+  d.setUTCHours(hourUtc, 0, 0, 0)
+  return d.toISOString()
+}
+const MAIL_AT = daysFromNow(0)
+const DEADLINE_AT = daysFromNow(2, 9)
+const EVENT_AT = daysFromNow(4)
+
 let passed = 0
 let failed = 0
 async function run(name, fn) {
@@ -54,7 +70,7 @@ function seedEmail(db, accId, over = {}) {
     from_addr: 'sender@example.com',
     to_addr: 'me@example.com',
     cc: '',
-    date_utc: '2026-10-20T02:00:00.000Z',
+    date_utc: MAIL_AT,
     date_raw: null,
     unread: 0,
     body_text: '这是正文内容。',
@@ -122,7 +138,7 @@ async function main() {
   })
 
   const e1 = seedEmail(db, accId, { subject: '学术讲座：周五前提交材料', from_addr: 'teacher@school.edu.cn' })
-  seedAnalysis(db, e1, { action_required: '周五前提交材料', deadline_at: '2026-10-23T09:00:00.000Z' })
+  seedAnalysis(db, e1, { action_required: '周五前提交材料', deadline_at: DEADLINE_AT })
   const i1 = seedInfo(db, e1, { title: '学术讲座：周五前提交材料', category: '需行动' })
 
   const e2 = seedEmail(db, accId, { subject: '讲座报名', from_addr: 'notice@school.edu.cn' })
@@ -133,7 +149,7 @@ async function main() {
   seedAnalysis(db, e3, {
     action_required: null,
     category: '重要通知',
-    event_start_at: '2026-10-25T02:00:00.000Z'
+    event_start_at: EVENT_AT
   })
   const i3 = seedInfo(db, e3, { title: '会议邀请', category: '重要通知' })
 
@@ -191,7 +207,7 @@ async function main() {
     assert.ok(result.itemId)
     const item = itemsDao.getItem(db, result.itemId)
     assert.equal(item.title, '周五前提交材料')
-    assert.equal(item.deadline_at, '2026-10-23T09:00:00.000Z')
+    assert.equal(item.deadline_at, DEADLINE_AT)
     assert.equal(item.source_email_id, e1)
     assert.equal(infoDao.getInfoByEmail(db, e1).destination, 'item')
     const rec = panelDao.getRecommendationDetail(db, todoRec.id)
@@ -252,7 +268,7 @@ async function main() {
     const result = panel.panelAct(db, store, scheduleRec.id, 'schedule')
     assert.ok(result.ok, result.message)
     const item = itemsDao.getItem(db, result.itemId)
-    assert.equal(item.event_start_at, '2026-10-25T02:00:00.000Z')
+    assert.equal(item.event_start_at, EVENT_AT)
     assert.ok(item.event_end_at)
     assert.equal(item.deadline_at, null)
     assert.equal(infoDao.getInfoByEmail(db, e3).destination, 'item')

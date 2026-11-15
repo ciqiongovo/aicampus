@@ -119,7 +119,7 @@ test('calling show alone is not success: only the show event records success', a
   assert.equal(h.notifications.length, 1)
   const notification = h.notifications[0]
   assert.equal(notification.showCalls, 1)
-  assert.equal(notification.options.title, 'InfoAgent 提醒')
+  assert.equal(notification.options.title, '知枢 · 提醒')
   assert.equal(notification.options.body, 'Item 101')
   assert.deepEqual(h.writes, [])
   notification.emit('show')

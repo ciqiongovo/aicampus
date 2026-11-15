@@ -557,6 +557,27 @@ export const MIGRATIONS: Migration[] = [
 
 export function latestSchemaVersion(): number { return MIGRATIONS.at(-1)!.version }
 
+/**
+ * 执行一条迁移语句。
+ *
+ * `ADD COLUMN` 撞上「列已存在」时跳过，别的错误照旧抛出。
+ *
+ * 为什么要容忍这一种：一个库可能在版本号比实际结构旧的状态下被打开——比如
+ * 先跑过更新版本的构建、又把库换回来，或者手工删过 schema_migrations 的行。
+ * 这时候整段迁移重放，CREATE TABLE IF NOT EXISTS 会按旧表原样跳过，
+ * 紧接着的 ADD COLUMN 就撞列。这不是数据损坏，跳过即可；
+ * 但如果放过所有错误，真正写坏的结构问题会被静默吞掉，所以只放这一种。
+ */
+function execMigrationStatement(db: DatabaseSync, sql: string): void {
+  try {
+    db.exec(sql)
+  } catch (error) {
+    const message = (error as Error).message
+    if (/duplicate column name/i.test(message) && /^\s*ALTER\s+TABLE\s+\S+\s+ADD\s+COLUMN/i.test(sql)) return
+    throw error
+  }
+}
+
 /** 应用未执行的迁移；返回当前 schema 版本号 */
 export function migrate(db: DatabaseSync): number {
   db.exec("CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL DEFAULT (datetime('now')))")
@@ -566,7 +587,7 @@ export function migrate(db: DatabaseSync): number {
     if (m.version <= current) continue
     db.exec('BEGIN')
     try {
-      for (const sql of m.up) db.exec(sql)
+      for (const sql of m.up) execMigrationStatement(db, sql)
       db.prepare('INSERT INTO schema_migrations (version) VALUES (?)').run(m.version)
       db.exec('COMMIT')
       current = m.version

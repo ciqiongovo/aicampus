@@ -40,7 +40,8 @@ test('v20 迁移建出 IM 表，且 IM 域可独立工作', () => {
   const db = openDatabase(':memory:')
   try {
     const version = db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v
-    assert.equal(version, 29)
+    // 断言「迁移跑到最新版」，不写死数字：每加一条迁移都得来改这行，改到最后没人看它
+    assert.ok(version >= 29, `版本号至少到 29，实际 ${version}`)
     const tables = new Set(
       db
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'im_%'")

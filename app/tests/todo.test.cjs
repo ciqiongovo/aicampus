@@ -36,7 +36,9 @@ test('v14 迁移新增 todo_lists 与 items 的待办列', (t) => {
   for (const col of ['list_id', 'completed_at', 'priority', 'event_end_at', 'all_day']) assert.ok(cols.includes(col), `items 缺列 ${col}`)
   const listCols = db.prepare('PRAGMA table_info(todo_lists)').all().map((c) => c.name)
   for (const col of ['id', 'name', 'color', 'sort_order', 'created_at']) assert.ok(listCols.includes(col), `todo_lists 缺列 ${col}`)
-  assert.equal(db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v, 29)
+  // 断言「v14 这一条迁移已经跑过」，而不是「最新版本正好是 29」：
+  // 后面加的 v30–v32 是对标库，跟待办列无关，却会把版本号推高
+  assert.ok(db.prepare('SELECT 1 FROM schema_migrations WHERE version = 14').get(), 'v14 应该已应用')
 })
 
 test('清单：创建/重名拒绝/重命名/删除后条目回到收集箱', (t) => {
