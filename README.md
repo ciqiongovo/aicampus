@@ -7,9 +7,49 @@
 
 ---
 
-## 装到别的电脑上
+## 别人怎么拿到它
 
-两种交付，随用途挑：
+结论：现在把 GitHub 链接发给别人，他既打不开，也跑不起来。仓库 `ciqiongovo/aicampus`
+是**私有**的（未登录访问直接 404），而且只放源码——`.gitignore` 排除了 `release/`、
+`out-dist*/` 和体验包目录，GitHub 上没有任何可运行的 exe，Release 也一个都没有。
+
+按省事程度，三种给法：
+
+| 给谁 | 发什么 | 对方要做什么 |
+|---|---|---|
+| 只想看结果 | [`output/知枢-对标报告-示例.html`](output/知枢-对标报告-示例.html)（68 KB） | 双击打开，Ctrl+P 存 PDF。不装东西、不联网 |
+| 想试软件 | `output/知枢-体验包.zip`（约 155 MB） | **整个文件夹解压** → 双击「知枢.exe」；自带 13 校 / 39 场示例库，不碰他已有数据 |
+| 自己长期用 | `ZhiShu-1.0.0-portable.exe`（约 106 MB） | 双击；数据落在 `%APPDATA%\ZhiShu` |
+
+zip 和 exe 是本机构建产物，不进仓库（几百 MB，没必要让 clone 变慢）；报告 HTML 和
+干净示例库在本仓库里，clone 下来就能看效果——示例库只含对标数据（29 校 / 42 源 /
+93 篇 / 39 场），没有邮件正文、账号和密钥。要拿它跑软件，把它改名成 `zhishu.db`
+放到 `%APPDATA%\ZhiShu\`；或在 exe 同目录建一个 `data\` 放进去，再放一个空的
+「知枢-便携数据.flag」，数据就只读写包内，不碰系统目录。
+
+**一定要走 GitHub 的话**：先把仓库改成 Public——私有仓库的 Release 资产同样要登录才下得了；
+再建一个 Release，把 zip / exe 作为资产传上去，别人从 Releases 页下载。不想公开代码
+就别走这条路，把体验者加为 collaborator，或者直接用上面的文件发给他。
+
+发出去之前核一遍校验和：
+
+```
+知枢-体验包.zip            sha256  99033c26510499adfb5dca4ee5c95ffaef6e020cd8019c60b75c08b4c08c89f4
+ZhiShu-1.0.0-portable.exe  sha256  feed463c6b6195563ec5f2863e2138c9af0052b5324b67172c7392bda779351f
+知枢-对标报告-示例.html     sha256  d475b5184daa5d237f7044ab0f0424d2fad267aabfcf6b8b9c6d73aceaa9fa11
+```
+
+开发者自己从源码构建（Node 22）：
+
+```bash
+cd app
+npm install
+npm run dist:portable   # 产物在 app/release/
+```
+
+## 两种交付分别是什么
+
+下面这些路径都是**本机**的构建 / 分发产物，不是仓库里的文件：
 
 ```
 app/release/ZhiShu-1.0.0-portable.exe   # 单文件，双击即用，不需要装 Node，也不需要装微信
@@ -26,7 +66,7 @@ output/知枢-体验包/                      # 整个文件夹，双击里面�
 换电脑拷这个目录数据就跟着走；卸载或删掉 exe 不会碰它。第一次启动会自解压到临时目录，
 之后每次启动大约两三秒。
 
-安装包版（`app/release/ZhiShu-1.0.0-setup.exe`）会建桌面快捷方式，其余行为一致。
+安装包版（`npm run dist` 生成的 NSIS setup）会建桌面快捷方式，其余行为一致；当前只打了便携版。
 
 ## 三步
 
