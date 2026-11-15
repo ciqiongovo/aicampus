@@ -34,7 +34,7 @@ zip 和 exe 是本机构建产物，不进仓库（几百 MB，没必要让 clon
 发出去之前核一遍校验和：
 
 ```
-知枢-体验包.zip            sha256  99033c26510499adfb5dca4ee5c95ffaef6e020cd8019c60b75c08b4c08c89f4
+知枢-体验包.zip            sha256  40341ef7f44ce2e6f4a2c605ed588535cc5dea21d3f2e5f8dc44473ae0b17ffb
 ZhiShu-1.0.0-portable.exe  sha256  feed463c6b6195563ec5f2863e2138c9af0052b5324b67172c7392bda779351f
 知枢-对标报告-示例.html     sha256  d475b5184daa5d237f7044ab0f0424d2fad267aabfcf6b8b9c6d73aceaa9fa11
 ```
