@@ -38,7 +38,7 @@ export function findBrowser(): string | null {
  * 放在应用数据目录下，卸载时跟着一起清掉，不散落在系统里。
  */
 function profileDir(): string {
-  const base = join(process.env.APPDATA ?? '.', 'InfoAgent', 'bench-profile')
+  const base = join(process.env.APPDATA ?? '.', 'ZhiShu', 'bench-profile')
   if (!existsSync(base)) mkdirSync(base, { recursive: true })
   return base
 }

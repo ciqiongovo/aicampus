@@ -1,6 +1,6 @@
 /**
  * 时间工具：聊天记录里时间格式很杂，统一在这里兜住。
- * 独立原型阶段放在 shared 下；接入 InfoAgent 时可并入 src/shared/utils.ts。
+ * 独立原型阶段放在 shared 下；接入 知枢 时可并入 src/shared/utils.ts。
  */
 
 const pad = (n: number): string => String(n).padStart(2, '0')

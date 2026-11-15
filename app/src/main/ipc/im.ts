@@ -2,7 +2,7 @@
  * IM 相关 IPC 注册。
  *
  * 只依赖一个最小的 ipcMain 接口，不 import electron：这样可以单独编译测试，
- * 接入 InfoAgent 时在 src/main/ipc/index.ts 里传真的 ipcMain 进来即可。
+ * 接入 知枢 时在 src/main/ipc/index.ts 里传真的 ipcMain 进来即可。
  */
 
 import type { ImUnderstandRequest, ImSyncQceRequest, ImSyncRequest } from '../../shared/im'

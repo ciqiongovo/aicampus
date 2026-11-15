@@ -2,9 +2,10 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Badge, Button, Layout, Menu, Space, Tag, Tooltip, Typography } from 'antd'
 import type { MenuProps } from 'antd'
-import { DesktopOutlined, MenuOutlined, MoonOutlined, PushpinFilled, PushpinOutlined, CloseOutlined, SunOutlined } from '@ant-design/icons'
+import { DesktopOutlined, MenuOutlined, MoonOutlined, PushpinFilled, PushpinOutlined, CloseOutlined, SunOutlined, AppstoreOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { modules } from './modules/registry'
+import { PREF } from './prefs'
 import type { ModuleManifest } from './modules/types'
 import { AiSettingsPage } from './modules/aiSettings'
 import { beginSiderResize } from './frameResize'
@@ -15,7 +16,7 @@ import { useTheme } from './theme'
 const { Sider, Header, Content } = Layout
 
 /** Sync telemetry must not broadcast a shell update to every mounted business view. */
-const MailSyncBadge = memo(function MailSyncBadge(): JSX.Element {
+const MailSyncBadge = memo(function MailSyncBadge(): JSX.Element | null {
   const [info, setInfo] = useState({ total: 0, syncing: 0, errors: 0 })
   useEffect(() => {
     let disposed = false
@@ -37,7 +38,9 @@ const MailSyncBadge = memo(function MailSyncBadge(): JSX.Element {
     document.addEventListener('visibilitychange', visible)
     return () => { disposed = true; window.clearInterval(timer); document.removeEventListener('visibilitychange', visible) }
   }, [])
-  return info.total === 0 ? <Badge status="default" text="邮件同步：未配置账号" />
+  // 没配邮箱时什么都不显示。以前这里挂一行灰色的「未配置账号」，
+  // 压在每一个板块的顶上——对一个不做邮件的人，那是每天都能看见的噪音
+  return info.total === 0 ? null
     : info.syncing > 0 ? <Badge status="processing" text={`邮件同步：${info.syncing}/${info.total}`} />
       : info.errors > 0 ? <Badge status="error" text={`邮件同步：${info.errors}个账号异常`} />
         : <Badge status="success" text={`邮件同步：正常（${info.total}个账号）`} />
@@ -55,20 +58,55 @@ export default function App(): JSX.Element {
   const modeLabel = mode === 'dark' ? '深色' : mode === 'system' ? '跟随系统' : '浅色'
   const modeIcon = mode === 'dark' ? <MoonOutlined /> : mode === 'system' ? <DesktopOutlined /> : <SunOutlined />
   const [siderWidth, setSiderWidth] = useState(200)
-  const [navVisible, setNavVisible] = useState(() => localStorage.getItem('infoagent.navVisible') !== 'false')
-  const [navPinned, setNavPinned] = useState(() => localStorage.getItem('infoagent.navPinned') !== 'false')
+  const [navVisible, setNavVisible] = useState(() => localStorage.getItem(PREF.navVisible) !== 'false')
+  const [navPinned, setNavPinned] = useState(() => localStorage.getItem(PREF.navPinned) !== 'false')
   const [visited, setVisited] = useState<Set<string>>(() => new Set([location.pathname]))
   useEffect(() => { setVisited((previous) => previous.has(location.pathname) ? previous : new Set([...previous, location.pathname])) }, [location.pathname])
-  useEffect(() => { localStorage.setItem('infoagent.navVisible', String(navVisible)) }, [navVisible])
-  useEffect(() => { localStorage.setItem('infoagent.navPinned', String(navPinned)) }, [navPinned])
+  useEffect(() => { localStorage.setItem(PREF.navVisible, String(navVisible)) }, [navVisible])
+  useEffect(() => { localStorage.setItem(PREF.navPinned, String(navPinned)) }, [navPinned])
   useEffect(() => {
     let live = true
     void window.api.appInfo().then((info) => { if (live) setAppInfo(info) }).catch(() => { if (live) setAppInfo(null) })
     return () => { live = false }
   }, [])
-  const menuItems: MenuProps['items'] = useMemo(() => modules.map((m) => ({ key: m.route, icon: m.icon, label: <Space size={6}>{m.title}{!m.enabled && <Tag>规划中</Tag>}</Space> })), [])
+  /*
+   * 侧栏分两档。
+   *
+   * 第一档只放「看兄弟高校在办什么」这条主线上的板块——对标、AI、日程、
+   * 待办、资料；个人资讯工具（面板、日报、邮件）收进「更多」，设置钉在最后。
+   * 九个板块平铺时，用户第一眼看不出这个软件是干什么的。
+   */
+  const menuItems: MenuProps['items'] = useMemo(() => {
+    const item = (m: ModuleManifest) => ({
+      key: m.route,
+      icon: m.icon,
+      label: <Space size={6}>{m.title}{!m.enabled && <Tag>规划中</Tag>}</Space>
+    })
+    const main = modules.filter((m) => m.id !== 'settings' && m.nav !== 'more')
+    const more = modules.filter((m) => m.nav === 'more')
+    const settings = modules.find((m) => m.id === 'settings')
+    const out: NonNullable<MenuProps['items']> = main.map(item)
+    if (more.length) {
+      out.push({ type: 'divider' })
+      out.push({
+        key: 'nav-more',
+        icon: <AppstoreOutlined />,
+        label: '更多',
+        children: more.map(item)
+      } as NonNullable<MenuProps['items']>[number])
+    }
+    if (settings) {
+      out.push({ type: 'divider' })
+      out.push(item(settings))
+    }
+    return out
+  }, [])
   const fallbackRoute = modules.find((m) => m.enabled)?.route ?? '/jarvis'
   const currentKey = '/' + (location.pathname.split('/')[1] ?? '')
+  // 落在「更多」里的板块时，进来就把这组展开——否则用户会以为页面丢了
+  const defaultOpenKeys = modules.some((m) => m.nav === 'more' && m.route === location.pathname)
+    ? ['nav-more']
+    : []
   const validRoute = modules.some((m) => m.route === location.pathname) || location.pathname === '/jarvis/settings'
   useEffect(() => { if (!validRoute) navigate(fallbackRoute, { replace: true }) }, [validRoute, fallbackRoute, navigate])
 
@@ -86,7 +124,7 @@ export default function App(): JSX.Element {
     {navVisible && <Sider width={siderWidth} theme={resolved === 'dark' ? 'dark' : 'light'} className={navPinned ? 'app-sider' : 'app-sider app-nav-floating'} style={{ borderRight: '1px solid var(--line)' }}>
       <div className="app-logo"><img className="app-logo-icon" src={appIcon} alt="知枢" /><div className="app-logo-text"><div className="app-logo-title">知枢</div><div className="app-logo-sub">高校活动对标</div></div></div>
       <div className="app-nav-controls"><Tooltip title={navPinned ? '取消固定，选择模块后自动隐藏' : '固定导航，保持展开'}><Button type="text" className={navPinned ? 'app-nav-btn app-nav-btn-active' : 'app-nav-btn'} aria-label={navPinned ? '取消固定导航' : '固定导航'} icon={navPinned ? <PushpinFilled /> : <PushpinOutlined />} onClick={() => setNavPinned((p) => !p)} /></Tooltip><Button type="text" className="app-nav-btn" aria-label="隐藏导航" icon={<CloseOutlined />} onClick={() => setNavVisible(false)} /></div>
-      <Menu theme={resolved === 'dark' ? 'dark' : 'light'} mode="inline" selectedKeys={[currentKey]} items={menuItems} onClick={({ key }) => { navigate(key); if (!navPinned) setNavVisible(false) }} />
+      <Menu theme={resolved === 'dark' ? 'dark' : 'light'} mode="inline" selectedKeys={[currentKey]} defaultOpenKeys={defaultOpenKeys} items={menuItems} onClick={({ key }) => { navigate(key); if (!navPinned) setNavVisible(false) }} />
     </Sider>}
     {navVisible && navPinned && <div className="app-sider-resizer" title="拖动调整导航宽度" onMouseDown={startSiderResize} onDoubleClick={() => setSiderWidth(200)} />}
     <Layout style={{ minWidth: 0 }}>

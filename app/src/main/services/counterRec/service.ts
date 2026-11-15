@@ -22,7 +22,7 @@ export interface CounterCandidateFetcher {
 }
 
 const SYSTEM_PROMPT = [
-  '你是 InfoAgent 的「反推荐」引擎：帮助用户打破信息茧房。',
+  '你是知枢的「反推荐」引擎：帮助用户打破信息茧房。',
   '',
   '任务：从候选热点列表中，挑出与用户画像/已知信息距离最大、最可能拓展其视野、且来源可信的一条。',
   '',

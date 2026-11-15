@@ -1,6 +1,6 @@
 /**
  * mailparser 3.x 精简类型声明（官方包未内置类型）：
- * 仅声明 InfoAgent 实际使用的 API 面，避免引入已停更的 @types/mailparser。
+ * 仅声明 知枢 实际使用的 API 面，避免引入已停更的 @types/mailparser。
  */
 declare module 'mailparser' {
   export interface AddressObject {

@@ -429,7 +429,7 @@ export function DailyPage(): ReactElement {
   return (
     <div className="daily-page">
       <div className="daily-overline">
-        <span>INFOAGENT / DAILY</span>
+        <span>ZHISHU / DAILY</span>
         <span>{overlineRight}</span>
       </div>
 
@@ -773,7 +773,7 @@ export function DailyPage(): ReactElement {
       )}
 
       <div className="daily-footer">
-        <span>InfoAgent 自动汇编</span>
+        <span>知枢自动汇编</span>
         <div className="daily-footer-actions">
           {report && (
             <button type="button" className="daily-footer-link" onClick={handleHandoffReport}>
@@ -987,6 +987,7 @@ export function DailyPage(): ReactElement {
 
 export const dailyModule: ModuleManifest = {
   id: 'daily',
+  nav: 'more',
   title: '日报',
   icon: <CalendarOutlined />,
   route: '/daily',

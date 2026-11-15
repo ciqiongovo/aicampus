@@ -1,7 +1,7 @@
 /**
  * 对外的服务门面：IPC 和 CLI 都只调这里，保证两边行为一致。
  *
- * 这里刻意不 import electron，接入 InfoAgent 时可以直接注入已有的 db。
+ * 这里刻意不 import electron，接入 知枢 时可以直接注入已有的 db。
  */
 
 import { existsSync, readdirSync } from 'node:fs'

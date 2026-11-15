@@ -3,12 +3,13 @@ import type { ReactNode } from 'react'
 import { App as AntApp, ConfigProvider, theme as antdTheme } from 'antd'
 import type { ThemeConfig } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
+import { PREF } from './prefs'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 export type ThemePalette = 'vivid' | 'classic'
 
-const MODE_KEY = 'infoagent.themeMode'
-const PALETTE_KEY = 'infoagent.palette'
+const MODE_KEY = PREF.themeMode
+const PALETTE_KEY = PREF.palette
 
 const FONT_SANS = "-apple-system, 'Segoe UI', 'Microsoft YaHei', 'Noto Sans SC', sans-serif"
 
@@ -48,7 +49,7 @@ function readPalette(): ThemePalette {
     const stored = localStorage.getItem(PALETTE_KEY)
     if (isPalette(stored)) return stored
     // 旧版本只有一个布尔开关；新默认改为全局多巴胺，开启过的用户保持多巴胺。
-    const legacy = localStorage.getItem('infoagent.vivid')
+    const legacy = localStorage.getItem(PREF.vivid)
     if (legacy === 'true') return 'vivid'
   } catch { /* storage may be disabled */ }
   return 'vivid'
@@ -177,7 +178,7 @@ export function ThemeProvider({ children }: { children: ReactNode }): JSX.Elemen
     setPaletteState(next)
     try {
       localStorage.setItem(PALETTE_KEY, next)
-      localStorage.setItem('infoagent.vivid', String(next === 'vivid'))
+      localStorage.setItem(PREF.vivid, String(next === 'vivid'))
     } catch { /* ignore */ }
   }, [])
 

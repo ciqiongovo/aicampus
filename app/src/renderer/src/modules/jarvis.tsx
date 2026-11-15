@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { PREF, AI_HANDOFF_EVENT } from '../prefs'
 import {
   Alert,
   App as AntApp,
@@ -43,8 +44,8 @@ import './jarvis.css'
 const { TextArea } = Input
 const { Text } = Typography
 
-const ACTIVE_CONVERSATION_KEY = 'infoagent.activeConversation'
-const HANDOFF_EVENT = 'infoagent:ai-handoff'
+const ACTIVE_CONVERSATION_KEY = PREF.activeConversation
+const HANDOFF_EVENT = AI_HANDOFF_EVENT
 
 function errText(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error)

@@ -186,7 +186,7 @@ export function heuristicRecommendation(
   }
 }
 
-const SYSTEM_PROMPT = `你是 InfoAgent 的个性化信息推荐器。你要从候选信息里判断“现在值不值得用户处理”，并只推荐一个动作。
+const SYSTEM_PROMPT = `你是知枢的个性化信息推荐器。你要从候选信息里判断“现在值不值得用户处理”，并只推荐一个动作。
 动作目录（只能选这些）：
 ${PANEL_ACTIONS.map((a) => `- ${a.key}：${a.label}。${a.hint}`).join('\n')}
 主题目录（只能使用这些）：

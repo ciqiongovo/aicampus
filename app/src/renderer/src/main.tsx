@@ -8,8 +8,12 @@ import App from './App'
 import { ThemeProvider } from './theme'
 import './styles.css'
 import './theme.css'
+import { migratePrefs } from './prefs'
 
 dayjs.locale('zh-cn')
+
+// 早于任何读取偏好的代码：旧键要先搬到新名下，否则用户会以为设置丢了
+migratePrefs()
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

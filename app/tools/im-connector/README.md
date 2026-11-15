@@ -1,7 +1,7 @@
 # im-connector · 微信 / QQ 聊天记录接入原型
 
-InfoAgent 的「聊天记录 → 信息理解」模块，独立可跑，不依赖 Electron、不改 InfoAgent 任何现有文件。
-跑通后按本文末尾「接入 InfoAgent」把文件搬进 `src/` 即可。
+知枢的「聊天记录 → 信息理解」模块，独立可跑，不依赖 Electron、不改知枢任何现有文件。
+跑通后按本文末尾「接入知枢」把文件搬进 `src/` 即可。
 
 ```
 聊天记录源 ──► 适配器 ──► im_message / im_session ──► 切窗 ──► 抽取 ──► im_insight ──► 日报 / 检索
@@ -11,10 +11,10 @@ InfoAgent 的「聊天记录 → 信息理解」模块，独立可跑，不依�
 
 ## 快速开始
 
-不需要 `npm install`：TypeScript 和 `@types/node` 复用 InfoAgent 的 `node_modules`（Node ≥ 22，`node:sqlite` 内置）。
+不需要 `npm install`：TypeScript 和 `@types/node` 复用知枢的 `node_modules`（Node ≥ 22，`node:sqlite` 内置）。
 
 ```bash
-cd InfoAgent/tools/im-connector
+cd 知枢/tools/im-connector
 npm run build                  # node ../../node_modules/typescript/bin/tsc -p tsconfig.json
 npm test                       # 6 个测试文件，51 项断言，全部用内存库
 
@@ -110,7 +110,7 @@ tests/*.test.cjs               6 个测试文件
 规则抽取（`heuristic.ts`）不是玩具：没有模型 Key 时它保证待办、决定、链接、待确认问题四类仍有产出，
 同时在测试里充当确定性基准。关键词用 2~3 字 n-gram + 停用词 + 子串去重，避免「日报 / 进日报 / 进日」这类碎片同时出现。
 
-## 接入 InfoAgent
+## 接入知枢
 
 只新增文件，不改现有逻辑；下面每一步都能独立回退。
 

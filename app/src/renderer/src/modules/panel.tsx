@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Dropdown, Empty, Input, Modal, Skeleton, Select, Tag, Tooltip, message } from 'antd'
+import { PREF } from '../prefs'
 import {
   ArrowRightOutlined,
   BookOutlined,
@@ -304,7 +305,7 @@ const PanelPage = memo(function PanelPage(): JSX.Element {
     mounted.current = true
     session.start()
     // Retire the old email-content cache without reading/parsing it. Never write it again.
-    try { localStorage.removeItem('infoagent.panel.snapshot.v1') } catch { /* storage may be disabled */ }
+    try { localStorage.removeItem(PREF.panelSnapshot) } catch { /* storage may be disabled */ }
     return () => { mounted.current = false; session.stop() }
   }, [session])
 
@@ -723,6 +724,7 @@ const PanelPage = memo(function PanelPage(): JSX.Element {
 
 export const panelModule: ModuleManifest = {
   id: 'panel',
+  nav: 'more',
   title: '面板',
   icon: <ThunderboltOutlined />,
   route: '/panel',

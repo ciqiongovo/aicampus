@@ -252,7 +252,7 @@ if (!gotLock) {
     // 生产环境收紧 CSP；开发环境放行 dev-server（HMR 需要 ws）
     if (!isDev) {
       app.on('web-contents-created', (_event, contents) => {
-        // 知乎登录/抓取窗口是独立分区，需要加载知乎自己的脚本与接口；不能套 InfoAgent 的 CSP。
+        // 知乎登录/抓取窗口是独立分区，需要加载知乎自己的脚本与接口；不能套知枢的 CSP。
         if (contents.session === session.fromPartition(ZHIHU_PARTITION)) return
         contents.session.webRequest.onHeadersReceived((details, callback) => {
           callback({

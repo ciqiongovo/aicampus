@@ -1,7 +1,7 @@
 /**
  * 极简 OpenAI 兼容补全客户端（DeepSeek / OpenAI / 通义 / 本地 vLLM 都走这套）。
  *
- * 之所以不直接复用 InfoAgent 的 analyzer：这是独立原型，等接进去时
+ * 之所以不直接复用 知枢 的 analyzer：这是独立原型，等接进去时
  * 把 createComplete 换成项目里已有的 chatCompletion 即可，签名一致。
  */
 

@@ -75,7 +75,7 @@ function AboutPane() {
 
   return (
     <Descriptions bordered column={1} size="small">
-      <Descriptions.Item label="应用名称">InfoAgent</Descriptions.Item>
+      <Descriptions.Item label="应用名称">知枢</Descriptions.Item>
       <Descriptions.Item label="版本">{info?.version ?? '读取中…'}</Descriptions.Item>
       <Descriptions.Item label="Electron">{info?.electron ?? '读取中…'}</Descriptions.Item>
       <Descriptions.Item label="Chromium">{info?.chrome ?? '读取中…'}</Descriptions.Item>
@@ -751,7 +751,7 @@ const QCE_PHASE_HINT: Record<ImQcePhase, { type: 'info' | 'success' | 'warning' 
   stopped: {
     type: 'info',
     title: '还没登录 QQ',
-    body: '点「登录 QQ」，InfoAgent 会启动内置 QCE 运行集（约 48MB），随后弹出 QQ 登录窗扫码即可。'
+    body: '点「登录 QQ」，知枢会启动内置 QCE 运行集（约 48MB），随后弹出 QQ 登录窗扫码即可。'
   },
   qq_not_found: {
     type: 'warning',
@@ -761,7 +761,7 @@ const QCE_PHASE_HINT: Record<ImQcePhase, { type: 'info' | 'success' | 'warning' 
   missing_runtime: {
     type: 'error',
     title: '安装包缺少 QCE 运行集',
-    body: '请重新安装完整的 InfoAgent 安装包，或执行 node scripts/prepare-qce.cjs 生成 resources/qce。'
+    body: '请重新安装完整的知枢安装包，或执行 node scripts/prepare-qce.cjs 生成 resources/qce。'
   },
   unsupported: {
     type: 'warning',
@@ -910,7 +910,7 @@ function QqAccountSection() {
   return (
     <Card size="small" title="QQ" extra={<Tag color={meta.color}>{meta.text}</Tag>}>
       <p className="account-desc">
-        InfoAgent 内置 QCE（NapCat）运行集：登录、扫码、退出都在本页完成，不接触 QQ 密码，令牌由 QCE 自己管理。
+        知枢内置 QCE（NapCat）运行集：登录、扫码、退出都在本页完成，不接触 QQ 密码，令牌由 QCE 自己管理。
       </p>
       <Descriptions
         size="small"
@@ -1642,7 +1642,7 @@ function GeneralInner() {
         type="info"
         showIcon
         message="开机自启动"
-        description="开启后，安装版 InfoAgent 将随 Windows 登录自动启动并驻留托盘；开发调试模式不写入系统登录项。"
+        description="开启后，安装版知枢将随 Windows 登录自动启动并驻留托盘；开发调试模式不写入系统登录项。"
       />
       <Space>
         <Switch

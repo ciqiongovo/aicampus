@@ -1,7 +1,7 @@
 /**
  * 微信 / QQ 聊天记录源：共享契约（类型 + IPC 通道）。
  *
- * 与 InfoAgent 里 shared/daily.ts 的做法一致：新通道单独成文件，
+ * 与 知枢 里 shared/daily.ts 的做法一致：新通道单独成文件，
  * 不去改 shared/types.ts 里已有的 IPC 常量，接入时由主进程/预加载汇总。
  */
 

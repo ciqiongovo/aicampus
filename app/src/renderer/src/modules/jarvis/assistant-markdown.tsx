@@ -72,7 +72,7 @@ function parseBlocks(content: string): Block[] {
 }
 
 function parseResourceHref(href: string): { kind: ResourceKind; id: number } | null {
-  const match = /^infoagent:\/\/([a-z]+)\/(\d+)$/.exec(href.trim())
+  const match = /^(?:infoagent|zhishu):\/\/([a-z]+)\/(\d+)$/.exec(href.trim())
   if (!match) return null
   const kind = match[1]
   if (!isResourceKind(kind)) return null
@@ -129,7 +129,7 @@ function appendInline(
   keyBase: string,
   onOpenResource: (ref: ResourceReference) => void
 ): void {
-  const pattern = /(\*\*[^*\n]+\*\*)|(`[^`\n]+`)|(\[[^\]\n]+\]\((?:infoagent:\/\/|https?:\/\/)[^)\s]+\))|(https?:\/\/[^\s<>"'）)]+)/g
+  const pattern = /(\*\*[^*\n]+\*\*)|(`[^`\n]+`)|(\[[^\]\n]+\]\((?:(?:infoagent|zhishu):\/\/|https?:\/\/)[^)\s]+\))|(https?:\/\/[^\s<>"'）)]+)/g
   let last = 0
   let index = 0
   let match = pattern.exec(text)
@@ -151,7 +151,7 @@ function appendInline(
       if (link) {
         const label = link[1]
         const href = link[2]
-        if (href.startsWith('infoagent://')) {
+        if (href.startsWith('zhishu://') || href.startsWith('infoagent://')) {
           const target = parseResourceHref(href)
           if (target) {
             nodes.push(
@@ -206,7 +206,7 @@ function renderInline(
 }
 
 function hasResourceLink(content: string): boolean {
-  return /\[[^\]]+\]\(infoagent:\/\/[a-z]+\/\d+\)/.test(content)
+  return /\[[^\]]+\]\((?:infoagent|zhishu):\/\/[a-z]+\/\d+\)/.test(content)
 }
 
 export function ReferenceChips({ references, onOpenResource }: {

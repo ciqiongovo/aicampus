@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { App as AntApp, Button, Dropdown, Slider, Spin, Tag } from 'antd'
+import { PREF } from '../prefs'
 import { DownOutlined, FontSizeOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import { MAIL_PARENT_LABELS } from '@shared/mailTags'
 import {
@@ -15,7 +16,7 @@ import './tagPreferences.css'
 const dimensions = MAIL_PARENT_LABELS
 const initialWeights = (): Record<string, number> => Object.fromEntries(dimensions.map((d) => [d.id, 5]))
 const clamp = (value: number): number => Math.max(0, Math.min(10, Math.round(value)))
-const KEYWORD_VIEW_KEY = 'infoagent.keywordView'
+const KEYWORD_VIEW_KEY = PREF.keywordView
 
 function readKeywordView(): KeywordView {
   return localStorage.getItem(KEYWORD_VIEW_KEY) === 'list' ? 'list' : 'cloud'

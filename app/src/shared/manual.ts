@@ -15,7 +15,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
   {
     id: 'start',
     title: '快速上手',
-    intro: 'InfoAgent 把邮件、群聊摘要、日程、待办和资料收在一个本地工作台里。',
+    intro: '知枢把公众号对标、日程、待办和资料收在一个本地工作台里。',
     items: [
       { title: '左侧导航', text: 'JARVIS、面板、日报、邮件、待办、日程、资料、设置。点击模块切换；顶部菜单按钮可收起导航。' },
       { title: '外观', text: '顶栏太阳/月亮按钮在浅色、深色、跟随系统之间切换；“多巴胺/经典”按钮切换配色包，选择会记住。' },
@@ -113,7 +113,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     title: '数据与隐私',
     intro: '数据默认保存在本机，只有你主动调用 AI 时才会发送必要内容。',
     items: [
-      { title: '本地存储', text: '数据库位于用户目录的 InfoAgent 数据目录；升级前的重要迁移会自动留备份。' },
+      { title: '本地存储', text: '数据库位于用户目录的 ZhiShu 数据目录；升级前的重要迁移会自动留备份。' },
       { title: 'AI 范围', text: '可在 AI 设置中限制可读取的数据域与附件；敏感操作始终需要确认。' },
       { title: '退出与备份', text: '便携版请从托盘完全退出后再替换程序；备份数据目录即可保留全部记录。' }
     ]

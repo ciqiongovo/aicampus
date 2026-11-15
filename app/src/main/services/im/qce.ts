@@ -3,7 +3,7 @@
  *
  * QCE 把已登录 QQ 的消息通过本地 HTTP 暴露成 JSON（Rust 服务，默认 40653），
  * 本适配器只做三件事：把群/最近会话映射成会话、把消息 JSON 映射成 RawMessage、
- * 按时间游标增量翻页。令牌从 QCE 自己的 security.json 读，不在 InfoAgent 里另存。
+ * 按时间游标增量翻页。令牌从 QCE 自己的 security.json 读，不在 知枢 里另存。
  */
 
 import { existsSync, readFileSync } from 'node:fs'
