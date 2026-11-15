@@ -289,6 +289,12 @@ export interface BenchStats {
   articles: number
   activities: number
   deleted: number
+  /** 队列里还没采正文的（status='new'） */
+  pending: number
+  /** 采到正文但还没抽字段的（status='fetched'） */
+  unparsed: number
+  /** 正文打不开的：原文删了、被限制访问，这些留着没用，要能看见才好清 */
+  unreachable: number
   /** 最近一次采集完成时间 */
   lastFetchAt: string | null
 }

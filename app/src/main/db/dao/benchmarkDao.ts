@@ -495,6 +495,10 @@ export function stats(db: DatabaseSync): BenchStats {
     articles: one('SELECT COUNT(*) AS n FROM bench_article'),
     activities: one('SELECT COUNT(*) AS n FROM bench_activity'),
     deleted: one("SELECT COUNT(*) AS n FROM bench_article WHERE status = 'deleted'"),
+    // 队列里还剩多少：按钮上直接写出来，省得点下去才知道有没有东西可采
+    pending: one("SELECT COUNT(*) AS n FROM bench_article WHERE status = 'new'"),
+    unparsed: one("SELECT COUNT(*) AS n FROM bench_article WHERE status = 'fetched'"),
+    unreachable: one("SELECT COUNT(*) AS n FROM bench_article WHERE status = 'unreachable'"),
     lastFetchAt: last?.t ?? null
   }
 }

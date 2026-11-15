@@ -258,7 +258,13 @@ export class BenchmarkService {
 
   // ---------------- 抓取 ----------------
 
-  async runFetch(limit = 20): Promise<BenchFetchResult> {
+  /**
+   * 采正文。
+   *
+   * onProgress 是给界面用的：一批 20 篇要跑一两分钟，没有进度条的话
+   * 用户只能对着一个转圈的按钮猜是不是卡死了。
+   */
+  async runFetch(limit = 20, onProgress?: (p: DiscoverProgress) => void): Promise<BenchFetchResult> {
     if (this.fetching) throw new Error('采集正在进行中')
     this.fetching = true
     const result: BenchFetchResult = { fetched: 0, imageOnly: 0, deleted: 0, unreachable: 0, blocked: false }
@@ -267,6 +273,14 @@ export class BenchmarkService {
       const queue = dao.pendingArticles(this.db, Math.min(Math.max(limit, 1), 200))
       for (const [i, item] of queue.entries()) {
         if (i > 0) await sleep(GAP_MIN_MS + Math.random() * (GAP_MAX_MS - GAP_MIN_MS))
+        onProgress?.({
+          current: i + 1,
+          total: queue.length,
+          // 这一批还没采到正文，标题未知。显示学校比显示链接尾段有用得多
+          // ——「mp.weixin.qq.com/s?__biz=MzA5...」对谁都没有意义。
+          account: item.hintSchool,
+          note: ''
+        })
         const outcome = await fetchArticle(item.url, { timeoutMs: FETCH_TIMEOUT_MS })
         if (outcome.status === 'ok') {
           const sourceId =
@@ -325,7 +339,7 @@ export class BenchmarkService {
 
   // ---------------- 抽取 ----------------
 
-  async runExtract(limit = 20): Promise<BenchExtractResult> {
+  async runExtract(limit = 20, onProgress?: (p: DiscoverProgress) => void): Promise<BenchExtractResult> {
     if (this.extracting) throw new Error('抽取正在进行中')
     // 没配模型不代表不能抽：退回规则抽取，至少把类型、时间、地点填上。
     // 直接抛错会让人卡在「必须先配 key」这一步，而那和「能不能看到东西」是两件事。
@@ -339,7 +353,13 @@ export class BenchmarkService {
     }
     try {
       const queue = dao.pendingExtract(this.db, Math.min(Math.max(limit, 1), 100))
-      for (const item of queue) {
+      for (const [i, item] of queue.entries()) {
+        onProgress?.({
+          current: i + 1,
+          total: queue.length,
+          account: item.title || '（无标题）',
+          note: ''
+        })
         try {
           const extracted = cfg
             ? await extractActivity(cfg, { title: item.title, body: item.body }, cfg.ourContext)

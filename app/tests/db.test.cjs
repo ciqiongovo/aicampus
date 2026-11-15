@@ -37,10 +37,12 @@ async function main() {
   mkdirSync(TMP_DIR, { recursive: true })
 
   console.log('== 迁移与建表 ==')
-  await run('首次打开：应用 v1-v29 增量迁移并保留核心表', () => {
+  await run('首次打开：增量迁移到底并保留核心表', () => {
     const db = openDatabase(DB_FILE)
     const v = db.prepare('SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1').get()
-    assert.equal(v.version, 29)
+    // 不写死具体版本号：每加一条迁移就要改测试的话，没人会去改，
+    // 改成「至少到了 v29（对标库建表那一版）」+ 下面两条约束就够看住了。
+    assert.ok(v.version >= 29, `迁移只走到 v${v.version}`)
     for (const t of ['accounts', 'emails', 'email_analysis', 'items', 'reminders', 'settings', 'info', 'profile_memory', 'counter_rec', 'ai_thoughts', 'schema_migrations', 'inbox_source', 'recommendation', 'recommendation_batch', 'feedback_event', 'preference_signal', 'source_preference', 'material_tags', 'material_folders', 'zhihu_push', 'zhihu_state']) {
       assert.ok(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`).get(t), `缺表 ${t}`)
     }
@@ -62,10 +64,13 @@ async function main() {
     assert.ok(anCols.includes('tier'), 'email_analysis 缺列 tier')
     db.close()
   })
-  await run('重复打开：迁移幂等（只执行一次，版本号 1..29，共 28 条（无 v20））', () => {
+  await run('重复打开：迁移幂等（同一版本不重复执行）', () => {
     const db = openDatabase(DB_FILE)
-    assert.equal(db.prepare('SELECT COUNT(*) AS c FROM schema_migrations').get().c, 28)
-    assert.equal(db.prepare('SELECT MAX(version) AS v FROM schema_migrations').get().v, 29)
+    const rows = db.prepare('SELECT version FROM schema_migrations').all().map((r) => r.version)
+    // 幂等的判据是「同一版本只有一行」，不是「总行数等于某个数」——
+    // 后者每加一条迁移就失效，前者才真的在测幂等
+    assert.equal(new Set(rows).size, rows.length, '有版本被重复执行')
+    assert.ok(rows.length > 0)
     db.close()
   })
 

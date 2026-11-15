@@ -32,6 +32,22 @@ function asFilter(value: unknown): BenchArticleFilter {
   }
 }
 
+/**
+ * 进度只推给发起调用的那个窗口。
+ *
+ * 多开窗口时广播到别人那儿去，会让人在没点过任何按钮的窗口里看到进度条乱跑。
+ */
+function progressTo(event: unknown, label: string) {
+  const sender = (event as { sender?: { send?: (channel: string, payload: unknown) => void } })
+    ?.sender
+  return (p: { current: number; total: number; account: string; note: string }): void => {
+    // 必须写成 sender.send(...) 而不是先把 send 取出来再调：
+    // WebContents.send 依赖 this，取出来单独调会变成 undefined，报
+    // "Cannot read properties of undefined (reading '_sendToMainFrame')"。
+    sender?.send?.(BENCH_PROGRESS_CHANNEL, { school: label, ...p })
+  }
+}
+
 export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkService): void {
   ipcMain.handle(BENCH_IPC.benchSources, () => service.sources())
 
@@ -68,11 +84,11 @@ export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkSe
   )
 
   ipcMain.handle(BENCH_IPC.benchFetch, (_e, limit: unknown) =>
-    service.runFetch(typeof limit === 'number' ? limit : 20)
+    service.runFetch(typeof limit === 'number' ? limit : 20, progressTo(_e, '采集正文'))
   )
 
   ipcMain.handle(BENCH_IPC.benchExtract, (_e, limit: unknown) =>
-    service.runExtract(typeof limit === 'number' ? limit : 20)
+    service.runExtract(typeof limit === 'number' ? limit : 20, progressTo(_e, '抽字段'))
   )
 
   ipcMain.handle(BENCH_IPC.benchStats, () => service.stats())
@@ -109,10 +125,11 @@ export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkSe
         ? accounts.filter((a): a is string => typeof a === 'string')
         : undefined
       // 进度往发起调用的那个窗口回推：多窗口时不能广播到别人那儿去
-      const send = (event as { sender?: { send?: (channel: string, payload: unknown) => void } })
-        ?.sender?.send
+      const sender = (event as { sender?: { send?: (channel: string, payload: unknown) => void } })
+        ?.sender
       return service.discover(name, list, (p) => {
-        send?.(BENCH_PROGRESS_CHANNEL, { school: name, ...p })
+        // 同 progressTo：方法要带着 this 调，不能先把函数取出来
+        sender?.send?.(BENCH_PROGRESS_CHANNEL, { school: name, ...p })
       })
     }
   )

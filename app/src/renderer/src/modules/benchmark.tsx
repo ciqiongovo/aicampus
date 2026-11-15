@@ -279,6 +279,9 @@ function BenchmarkPage(): JSX.Element {
       if (r.unreachable) parts.push(`暂不可见 ${r.unreachable}`)
       // 撞验证时要说清楚是怎么回事，否则用户只会看到一串失败反复重试
       if (r.blocked) parts.push('连续撞上微信验证，已提前停止，过 20–30 分钟再试')
+      // 一次只跑 20 篇。不说还剩多少，用户会以为「采集完成」= 全采完了
+      const after = await window.api.benchStats()
+      if (after.pending > 0) parts.push(`队列还剩 ${after.pending} 篇，再点一次接着采`)
       return `采集完成：${parts.join('，')}`
     })
   }
@@ -287,7 +290,9 @@ function BenchmarkPage(): JSX.Element {
     void run('extract', async () => {
       const r = await window.api.benchExtract(20)
       const byRule = r.mode === 'rule' ? '（未配模型，按规则抽取，细节字段会少一些）' : ''
-      return `抽取完成${byRule}：活动 ${r.activities}，非活动 ${r.skipped}，失败 ${r.failed}`
+      const after = await window.api.benchStats()
+      const rest = after.unparsed > 0 ? `，还有 ${after.unparsed} 篇待抽取` : ''
+      return `抽取完成${byRule}：活动 ${r.activities}，非活动 ${r.skipped}，失败 ${r.failed}${rest}`
     })
   }
 
@@ -429,6 +434,46 @@ function BenchmarkPage(): JSX.Element {
 
   const discoveringSchool = busy.startsWith('discover:') ? busy.slice('discover:'.length) : ''
 
+  /**
+   * 第二步按钮旁边的一句话。
+   *
+   * 采集和抽取一次只跑 20 篇，走完一遍不等于全干完。不把队列余量写出来，
+   * 用户看到「采集完成」就以为完事了，剩下的几十篇会一直躺在库里没人管。
+   */
+  const queueNote = ((): string => {
+    if (!stats) return ''
+    if (stats.pending > 0) return `队列里还有 ${stats.pending} 篇没采正文`
+    if (stats.unparsed > 0) return `${stats.unparsed} 篇已采到正文，等抽字段`
+    if (stats.unreachable > 0) return `${stats.unreachable} 篇打不开，过一阵会自动重试`
+    if (stats.articles > 0) {
+      return stats.lastFetchAt ? `都处理完了，上次采集 ${shortDate(stats.lastFetchAt)}` : '都处理完了'
+    }
+    return ''
+  })()
+
+  /**
+   * 进度条。找账号、采正文、抽字段三件事都慢，共用一条。
+   *
+   * account 在不同环节含义不同——找账号时是公众号名，采正文时是文章标题，
+   * 所以统一用引号括起来，不写「正在找」这种只对某一步成立的动词。
+   */
+  const progressBar = progress ? (
+    <div className="bench-progress">
+      <Progress
+        percent={progress.total ? Math.round((progress.current / progress.total) * 100) : 0}
+        size="small"
+        style={{ width: 180 }}
+        status="active"
+      />
+      <span className="bench-muted">
+        {progress.school}
+        {progress.account ? ` · 「${progress.account}」` : ''}
+        {progress.total ? `（${progress.current}/${progress.total}）` : ''}
+        {progress.note ? ` · ${progress.note}` : ''}
+      </span>
+    </div>
+  ) : null
+
   return (
     <div className="bench">
       <div className="bench-head">
@@ -461,7 +506,7 @@ function BenchmarkPage(): JSX.Element {
       </div>
 
       {/* ---------- 第一步：选学校 ---------- */}
-      <section className="bench-step">
+      <section className="bench-step" id="bench-step-1">
         <div className="bench-step-head">
           <span className="bench-step-no">1</span>
           选学校，让软件自己去公众号里找文章
@@ -471,24 +516,7 @@ function BenchmarkPage(): JSX.Element {
           </span>
         </div>
 
-        {progress ? (
-          <div className="bench-step-body">
-            <Progress
-              percent={
-                progress.total ? Math.round((progress.current / progress.total) * 100) : 0
-              }
-              size="small"
-              style={{ width: 220 }}
-              status="active"
-            />
-            <span className="bench-muted">
-              {progress.school}
-              {progress.account ? ` · 正在找「${progress.account}」` : ''}
-              {progress.total ? `（${progress.current}/${progress.total}）` : ''}
-              {progress.note && !progress.account ? ` · ${progress.note}` : ''}
-            </span>
-          </div>
-        ) : null}
+        {busy.startsWith('discover') ? progressBar : null}
 
         <div className="bench-schools">
           {visibleSchools.map((s) => (
@@ -578,7 +606,7 @@ function BenchmarkPage(): JSX.Element {
             disabled={!!busy && busy !== 'fetch'}
             onClick={doFetch}
           >
-            采集正文
+            采集正文{stats?.pending ? `（${stats.pending}）` : ''}
           </Button>
           <Button
             icon={<ThunderboltOutlined />}
@@ -586,12 +614,14 @@ function BenchmarkPage(): JSX.Element {
             disabled={!!busy && busy !== 'extract'}
             onClick={doExtract}
           >
-            抽字段
+            抽字段{stats?.unparsed ? `（${stats.unparsed}）` : ''}
           </Button>
           <Button onClick={() => void load()} icon={<ReloadOutlined />} disabled={!!busy}>
             刷新
           </Button>
+          <span className="bench-queue">{queueNote}</span>
         </div>
+        {busy === 'fetch' || busy === 'extract' ? progressBar : null}
       </section>
 
       {/* ---------- 第三步：看结果 ---------- */}
@@ -659,8 +689,35 @@ function BenchmarkPage(): JSX.Element {
         {!stats?.articles ? (
           <Empty
             className="bench-empty"
-            description="库里还没有文章。上面点「导入内置样本」立刻有东西可看，或者按学校去搜。"
-          />
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <div className="bench-empty-text">
+                <div className="bench-empty-title">库里还没有文章</div>
+                <div className="bench-muted">
+                  先导入随软件带的一批样本链接，立刻能看到长什么样；也可以回上面选一所学校，
+                  去搜它最近在办什么。
+                </div>
+              </div>
+            }
+          >
+            <Space>
+              <Button
+                type="primary"
+                icon={<InboxOutlined />}
+                loading={busy === 'seed'}
+                onClick={importSeeds}
+              >
+                导入内置样本
+              </Button>
+              <Button
+                onClick={() =>
+                  document.getElementById('bench-step-1')?.scrollIntoView({ behavior: 'smooth' })
+                }
+              >
+                去选学校
+              </Button>
+            </Space>
+          </Empty>
         ) : (
           <Table
             className="bench-table"
