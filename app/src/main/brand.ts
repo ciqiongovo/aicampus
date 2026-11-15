@@ -12,7 +12,7 @@
 
 import { app } from 'electron'
 import { existsSync, mkdirSync, statSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
 export const APP_NAME = '知枢'
@@ -29,6 +29,15 @@ export const DB_FILE = 'zhishu.db'
 const LEGACY_DIRS = ['InfoAgent', 'infoagent']
 const LEGACY_DB = 'infoagent.db'
 
+/**
+ * 体验包标记。只有 exe 同目录里主动放了这个空文件，才把用户数据留在包内。
+ *
+ * 默认仍写 %APPDATA%\ZhiShu —— 装在自己电脑上的用户不该因为同目录恰好有个
+ * data 文件夹就换库。加标记是为了「整个文件夹拷给别人，双击就能看到示例数据」，
+ * 又不碰对方已有的库。
+ */
+const PORTABLE_FLAG = '知枢-便携数据.flag'
+
 export interface UserDataReady {
   dir: string
   dbPath: string
@@ -44,14 +53,19 @@ export interface UserDataReady {
  * 导出来的才是完整状态。
  */
 export function prepareUserData(): UserDataReady {
+  // 单文件便携版会把程序解压到临时目录，process.execPath 指不到用户放 exe 的地方；
+  // electron-builder 把原目录放进 PORTABLE_EXECUTABLE_DIR。解包版直接用 exe 所在目录。
+  const exeDir = process.env.PORTABLE_EXECUTABLE_DIR || dirname(process.execPath)
+  const portable = existsSync(join(exeDir, PORTABLE_FLAG))
   const dataRoot = app.getPath('appData')
-  const dir = join(dataRoot, APP_NAME_EN)
+  const dir = portable ? join(exeDir, 'data') : join(dataRoot, APP_NAME_EN)
   mkdirSync(dir, { recursive: true })
   app.setPath('userData', dir)
 
   const dbPath = join(dir, DB_FILE)
   let migrated = false
-  if (!existsSync(dbPath)) {
+  // 体验包自带库，不去翻别人机器上的旧版目录——那是另一套数据，混进来只会乱
+  if (!portable && !existsSync(dbPath)) {
     for (const legacyDir of LEGACY_DIRS) {
       const legacy = join(dataRoot, legacyDir, LEGACY_DB)
       if (!existsSync(legacy) || statSync(legacy).size === 0) continue

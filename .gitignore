@@ -44,3 +44,8 @@ output/bench/sk.txt
 output/bench/baidu.html
 output/bench/links.json
 output/bench/search-links.json
+
+# 体验包是本地生成的分发物（几百 MB），不进仓库。
+# 但那份去掉了私人数据的示例库要留着，别人 clone 下来不用重采也能看效果。
+output/知枢-体验包/
+!output/知枢-示例数据-zhishu.db

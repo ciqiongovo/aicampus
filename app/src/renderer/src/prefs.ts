@@ -17,7 +17,8 @@ export const PREF = {
   aiReturn: 'zhishu.aiReturn',
   activeConversation: 'zhishu.activeConversation',
   panelSnapshot: 'zhishu.panel.snapshot.v1',
-  keywordView: 'zhishu.keywordView'
+  keywordView: 'zhishu.keywordView',
+  benchRange: 'zhishu.bench.range'
 } as const
 
 const LEGACY_PREFIX = 'infoagent.'

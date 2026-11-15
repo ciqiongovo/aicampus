@@ -283,7 +283,7 @@ table.grid tr.home td.name{box-shadow:inset 3px 0 0 var(--accent)}
 table.grid td .slash{color:var(--ink-3); font-weight:400}
 .tag{font-size:10.5px; color:var(--accent); border:1px solid currentColor; border-radius:2px;
   padding:0 4px; margin-left:6px; font-weight:400; vertical-align:1px}
-.unit{color:var(--ink-3); font-size:11px; margin-left:1px}
+.unit{color:var(--ink-3); font-size:11px; margin-left:3px}
 .muted{color:var(--ink-3)}
 
 .bars{display:flex; flex-direction:column; gap:7px}

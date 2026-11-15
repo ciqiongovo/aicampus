@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { ModuleManifest } from './types'
+import { PREF } from '../prefs'
 import type {
   BenchArticleDetail,
   BenchArticleFilter,
@@ -156,8 +157,17 @@ function BenchmarkPage(): JSX.Element {
   const [kind, setKind] = useState('')
   const [keyword, setKeyword] = useState('')
   const [secondOnly, setSecondOnly] = useState(false)
-  /** 时间窗口：报名表写的是「上海各高校一年内的所有活动」，所以默认给一年 */
-  const [range, setRange] = useState<'all' | 'half' | 'year'>('year')
+  /**
+   * 时间窗口。默认「全部」：库里这 39 场是跨年份采的，默认给近一年只剩 7 场，
+   * 简报一下就薄了。想看一年自己切，切过之后记住，不必每次重开都再点一遍。
+   */
+  const [range, setRange] = useState<'all' | 'half' | 'year'>(() => {
+    const saved = window.localStorage.getItem(PREF.benchRange)
+    return saved === 'all' || saved === 'half' || saved === 'year' ? saved : 'all'
+  })
+  useEffect(() => {
+    window.localStorage.setItem(PREF.benchRange, range)
+  }, [range])
 
   const homeSchool = useMemo(() => schoolList.find((s) => s.isHome) ?? null, [schoolList])
   /** 源表里改归属用的下拉项：只给清单里的全称，别让人敲错字 */

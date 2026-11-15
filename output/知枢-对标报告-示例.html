@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>全部活动对标简报</title>
+<style>:root{
+  --ink:#1c1c1a; --ink-2:#4a4a46; --ink-3:#8a8a82;
+  --line:#e2e0da; --wall:#f6f5f1; --paper:#fff; --accent:#9b3b2f;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:48px 32px 72px; background:var(--wall); color:var(--ink);
+  font-family:"Microsoft YaHei","PingFang SC","Hiragino Sans GB","Source Han Sans SC",sans-serif;
+  font-size:14px; line-height:1.75; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:860px; margin:0 auto; background:var(--paper); padding:52px 56px 64px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.05); border-radius:2px}
+h1{font-size:27px; line-height:1.35; margin:0 0 10px; font-weight:700; letter-spacing:-.2px}
+.sub{color:var(--ink-3); font-size:12.5px; letter-spacing:.3px; margin-bottom:34px;
+  padding-bottom:22px; border-bottom:2px solid var(--ink)}
+h2{font-size:16px; margin:38px 0 14px; font-weight:700; display:flex; align-items:center; gap:10px}
+h2::before{content:""; width:3px; height:15px; background:var(--accent); border-radius:1px}
+h3{font-size:13.5px; margin:26px 0 12px; font-weight:700; color:var(--ink-2); letter-spacing:.4px}
+h4{font-size:14px; margin:0 0 10px; font-weight:600; line-height:1.5; display:flex; align-items:baseline; gap:8px}
+.idx{color:var(--ink-3); font-size:12px; font-variant-numeric:tabular-nums; flex:none}
+.flag{flex:none; font-size:11px; color:#8a5a12; background:#fdf4e3; border:1px solid #f0e0bf;
+  border-radius:3px; padding:1px 6px; font-weight:400}
+
+.findings{list-style:none; padding:0; margin:0; counter-reset:f}
+.findings li{position:relative; padding:9px 0 9px 30px; border-bottom:1px dashed var(--line); color:var(--ink)}
+.findings li:before{counter-increment:f; content:counter(f); position:absolute; left:0; top:10px;
+  width:19px; height:19px; border-radius:50%; background:var(--ink); color:#fff; font-size:11px;
+  text-align:center; line-height:19px; font-variant-numeric:tabular-nums}
+.findings li:last-child{border-bottom:none}
+
+table.grid{width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed}
+/* 第一列给学校名留足位置：fixed 布局下平均分配，八列时「上海科技大学」会被折成两行 */
+table.grid th:first-child{width:24%}
+table.grid th{ text-align:left; font-weight:600; color:var(--ink-3); font-size:11.5px; letter-spacing:.5px;
+  padding:0 8px 8px; border-bottom:1.5px solid var(--ink); white-space:nowrap}
+table.grid td{padding:9px 8px; border-bottom:1px solid var(--line); vertical-align:middle}
+table.grid th.n, table.grid td.n{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
+table.grid td.name{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+table.grid td.kind{color:var(--ink-2)}
+/* 同类活动表：时间不折行，特色一栏字号小一档，免得把行撑成三行高 */
+table.grid td.when{white-space:nowrap; color:var(--ink-2); font-variant-numeric:tabular-nums}
+table.grid td.hl{color:var(--ink-2); font-size:12px}
+h3 .sub{font-weight:400; font-size:11.5px; color:var(--ink-3); margin-left:8px; letter-spacing:0}
+table.grid tr.home td{background:#faf8f4}
+table.grid tr.home td.name{box-shadow:inset 3px 0 0 var(--accent)}
+table.grid td .slash{color:var(--ink-3); font-weight:400}
+.tag{font-size:10.5px; color:var(--accent); border:1px solid currentColor; border-radius:2px;
+  padding:0 4px; margin-left:6px; font-weight:400; vertical-align:1px}
+.unit{color:var(--ink-3); font-size:11px; margin-left:3px}
+.muted{color:var(--ink-3)}
+
+.bars{display:flex; flex-direction:column; gap:7px}
+.bar-row{display:grid; grid-template-columns:104px 1fr 46px; align-items:center; gap:12px}
+.bar-label{font-size:12.5px; color:var(--ink-2); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.bar-track{height:14px; background:var(--wall); border-radius:2px; overflow:hidden}
+.bar-fill{display:block; height:100%; background:var(--ink-2); border-radius:2px}
+.bar-val{font-size:12px; color:var(--ink-2); font-variant-numeric:tabular-nums; text-align:right}
+
+.school{margin-top:26px}
+.school-head{display:flex; align-items:baseline; gap:10px; padding-bottom:7px; border-bottom:1px solid var(--ink);
+  margin-bottom:14px}
+.school-head .nm{font-size:15px; font-weight:700}
+.school-head .ct{font-size:12px; color:var(--ink-3)}
+.card{border-left:2px solid var(--line); padding:2px 0 2px 16px; margin-bottom:20px; page-break-inside:avoid}
+.meta{display:flex; flex-wrap:wrap; gap:4px 22px; margin-bottom:6px}
+.kv{display:flex; gap:6px; font-size:12.5px; min-width:180px}
+.kv .k, .line .k{color:var(--ink-3); flex:none; width:34px}
+.kv .v{color:var(--ink-2)}
+.line{display:flex; gap:6px; font-size:12.5px; margin-top:3px}
+.line .v{color:var(--ink-2); flex:1}
+.src{font-size:11.5px; color:var(--ink-3); margin-top:7px; word-break:break-all}
+.src a{color:var(--ink-3); text-decoration:none; border-bottom:1px solid var(--line)}
+.note{font-size:11.5px; color:var(--ink-3); margin:10px 0 0; line-height:1.7}
+footer{margin-top:46px; padding-top:18px; border-top:1px solid var(--line); font-size:11.5px;
+  color:var(--ink-3); line-height:1.8}
+
+@media print{
+  body{background:#fff; padding:0; font-size:11.5pt}
+  .wrap{box-shadow:none; padding:0; max-width:none; border-radius:0}
+  h1{font-size:19pt}
+  h2{page-break-after:avoid; font-size:12pt}
+  h3{page-break-after:avoid}
+  .card, .bar-row, tr{page-break-inside:avoid}
+  .src a{color:var(--ink-2)}
+  @page{size:A4; margin:16mm 15mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>全部活动对标简报</h1>
+  <div class="sub">生成于 2026-11-15 18:14　·　覆盖 6 所学校　·　39 条记录（合并成 35 场）</div>
+
+  <h2>先说结论</h2>
+  <ol class="findings">
+    <li>样本构成：39 场里 24 场是「迎新与毕业」（62%）。这个比例说明的是这批文章围着什么采的，不是各校的偏好——要看类型偏好，得把别的类型也采一些。</li><li>篇数与场次：复旦大学 17 篇 / 16 场、上海大学 6 篇 / 3 场。同一场活动的预告、招募、回顾会各算一条；场次按「类型 + 日期」合并，没写日期的各算一场（两场都没写日期就分不出来）。</li><li>同一件事：5 所学校共 20 场「迎新与毕业」：多在第 4 周，中位提前 4 天发预告，8 场在礼堂与剧场，2 场要报名。这一条是按类型横着看的，明细见「同类活动」那一节。</li><li>规模：39 场活动里只有 4 场在原文写了参与人数，不到两所学校有数据，这项没法横向比。校园活动报道普遍不写人数——不是抽取漏了，是原文没有。</li><li>节奏：本校中位提前 3 天发预告，外校 2 天（4 所）——节奏基本一致。</li><li>周次：本校活动多在第 7 周办，外校中位第 5 周（4 所）——相差 2 周。这是学期节奏上的位置差别，不是把某个环节做得更细就能追上的。</li><li>华东政法大学只有 1 场活动，样本太少没有进对比表——一条数据算出来的「平均」会被当成事实引用，所以宁可空着。</li>
+  </ol>
+
+  <h2>横向对比</h2>
+  
+  <section class="block">
+    <h3>各校一览</h3>
+    <table class="grid">
+      <thead><tr><th>学校</th><th class="n" title="篇数；斜杠后是按类型+日期合并后的场次（同一场活动的预告、招募、回顾各算一篇）">活动</th><th class="n">中位规模</th><th class="n" title="原文写明人数的活动占比">人数覆盖</th><th class="n" title="按开学日估算，各校校历不同">中位周次</th><th class="n" title="推文发布到活动开始的天数中位数">提前预告</th><th class="n" title="每条活动平均提到的宣传手段数">宣传手段</th><th>最常办</th></tr></thead>
+      <tbody><tr class="home"><td class="name">上海科技大学<span class="tag">本校</span></td><td class="n">4</td><td class="n"><span class="muted">—</span></td><td class="n muted">0%</td><td class="n">第 7 周</td><td class="n">3<span class="unit">天</span></td><td class="n">0.5</td><td class="kind">迎新与毕业</td></tr><tr class=""><td class="name">复旦大学</td><td class="n">17<span class="slash">/16</span></td><td class="n">763<span class="unit">人</span></td><td class="n muted">12%</td><td class="n">第 4 周</td><td class="n">2<span class="unit">天</span></td><td class="n">0.1</td><td class="kind">迎新与毕业</td></tr><tr class=""><td class="name">上海大学</td><td class="n">6<span class="slash">/3</span></td><td class="n"><span class="muted">—</span></td><td class="n muted">0%</td><td class="n">第 3 周</td><td class="n">1<span class="unit">天</span></td><td class="n">0.8</td><td class="kind">迎新与毕业</td></tr><tr class=""><td class="name">同济大学</td><td class="n">6</td><td class="n">503<span class="unit">人</span></td><td class="n muted">17%</td><td class="n">第 6 周</td><td class="n">4<span class="unit">天</span></td><td class="n">0.2</td><td class="kind">迎新与毕业</td></tr><tr class=""><td class="name">上海交通大学</td><td class="n">5</td><td class="n">250<span class="unit">人</span></td><td class="n muted">20%</td><td class="n">第 9 周</td><td class="n">1<span class="unit">天</span></td><td class="n">1</td><td class="kind">迎新与毕业</td></tr></tbody>
+    </table>
+    <p class="note">中位数只按「原文写明」的条目算，旁边一列是覆盖率：18 场里只有 2 场写了人数时，这个中位数不能和写满 18 场的学校并排看待。没有出现的列，说明有这项数据的学校不足两所。活动数写成「6/3」的地方，是 6 篇推文合并成 3 场：同一场活动的预告、招募、回顾各算一条。</p>
+  </section>
+  
+  <section class="block">
+    <h3>办的是些什么活动</h3>
+    <div class="bars">
+      <div class="bar-row">
+        <span class="bar-label">迎新与毕业</span>
+        <span class="bar-track"><span class="bar-fill" style="width:100.0%"></span></span>
+        <span class="bar-val">24<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">讲座与沙龙</span>
+        <span class="bar-track"><span class="bar-fill" style="width:20.8%"></span></span>
+        <span class="bar-val">5<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">体育与健身</span>
+        <span class="bar-track"><span class="bar-fill" style="width:16.7%"></span></span>
+        <span class="bar-val">4<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">志愿与公益</span>
+        <span class="bar-track"><span class="bar-fill" style="width:12.5%"></span></span>
+        <span class="bar-val">3<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">比赛与竞赛</span>
+        <span class="bar-track"><span class="bar-fill" style="width:4.2%"></span></span>
+        <span class="bar-val">1<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">市集与展览</span>
+        <span class="bar-track"><span class="bar-fill" style="width:4.2%"></span></span>
+        <span class="bar-val">1<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">招新与招募</span>
+        <span class="bar-track"><span class="bar-fill" style="width:4.2%"></span></span>
+        <span class="bar-val">1<span class="unit">条</span></span>
+      </div>
+    </div>
+  </section>
+  
+  <section class="block">
+    <h3>宣传都用哪些手段</h3>
+    <div class="bars">
+      <div class="bar-row">
+        <span class="bar-label">视频与直播</span>
+        <span class="bar-track"><span class="bar-fill" style="width:100.0%"></span></span>
+        <span class="bar-val">8<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">抽奖与福利</span>
+        <span class="bar-track"><span class="bar-fill" style="width:50.0%"></span></span>
+        <span class="bar-val">4<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">预热推文</span>
+        <span class="bar-track"><span class="bar-fill" style="width:37.5%"></span></span>
+        <span class="bar-val">3<span class="unit">条</span></span>
+      </div><div class="bar-row">
+        <span class="bar-label">海报</span>
+        <span class="bar-track"><span class="bar-fill" style="width:25.0%"></span></span>
+        <span class="bar-val">2<span class="unit">条</span></span>
+      </div>
+    </div>
+  </section>
+
+  <h2>同一件事，各校怎么办</h2>
+  
+  <section class="block">
+    <h3>迎新与毕业<span class="sub">5 所学校 20 场</span></h3>
+    <p class="note">5 所学校共 20 场「迎新与毕业」：多在第 4 周，中位提前 4 天发预告，8 场在礼堂与剧场，2 场要报名。</p>
+    <table class="grid">
+      <thead><tr><th>学校</th><th>时间</th><th>场地</th></tr></thead>
+      <tbody><tr class="home"><td class="name">上海科技大学<span class="tag">本校</span></td><td class="when">2022-09-25<span class="unit">第4周</span></td><td>会议中心</td></tr><tr class="home"><td class="name">上海科技大学<span class="tag">本校</span></td><td class="when">2026-09-27<span class="unit">第4周</span></td><td>会议中心</td></tr><tr class=""><td class="name">复旦大学</td><td class="when">2023-09-23<span class="unit">第4周</span></td><td><span class="muted">—</span></td></tr><tr class=""><td class="name">上海交通大学</td><td class="when">2023-11-04<span class="unit">第10周</span></td><td><span class="muted">—</span></td></tr><tr class=""><td class="name">上海交通大学</td><td class="when">2023-11-11<span class="unit">第11周</span></td><td>李政道图书馆B1报告厅</td></tr><tr class=""><td class="name">上海大学</td><td class="when">2024-08-23<span class="unit">第1周</span></td><td><span class="muted">—</span></td></tr><tr class=""><td class="name">复旦大学</td><td class="when">2024-09-22<span class="unit">第4周</span></td><td><span class="muted">—</span></td></tr><tr class=""><td class="name">同济大学</td><td class="when">2024-09-27<span class="unit">第4周</span></td><td>四平路校区大礼堂</td></tr><tr class=""><td class="name">上海交通大学</td><td class="when">2024-10-29<span class="unit">第9周</span></td><td>李政道报告厅</td></tr><tr class=""><td class="name">同济大学</td><td class="when">2024-12-03<span class="unit">第14周</span></td><td><span class="muted">—</span></td></tr><tr><td colspan="3" class="muted">另有 10 场，见后文逐校明细</td></tr></tbody>
+    </table>
+  </section>
+  <section class="block">
+    <h3>讲座与沙龙<span class="sub">2 所学校 5 场</span></h3>
+    <p class="note">2 所学校共 5 场「讲座与沙龙」：多在第 9 周，中位提前 2 天发预告，2 场在礼堂与剧场，2 场要报名。</p>
+    <table class="grid">
+      <thead><tr><th>学校</th><th>时间</th><th>场地</th><th>参与方式</th></tr></thead>
+      <tbody><tr class="home"><td class="name">上海科技大学<span class="tag">本校</span></td><td class="when">2026-07-03<span class="unit">第20周</span></td><td>校图书馆</td><td><span class="muted">—</span></td></tr><tr class=""><td class="name">复旦大学</td><td class="when">2022-04-22<span class="unit">第9周</span></td><td><span class="muted">—</span></td><td>报名</td></tr><tr class=""><td class="name">复旦大学</td><td class="when">2022-10-30<span class="unit">第9周</span></td><td><span class="muted">—</span></td><td><span class="muted">—</span></td></tr><tr class=""><td class="name">复旦大学</td><td class="when">2024-03-08<span class="unit">第3周</span></td><td>枫林校区书院二楼报告厅</td><td>报名</td></tr><tr class=""><td class="name">复旦大学</td><td class="when">2024-04-27<span class="unit">第10周</span></td><td>学生公寓二楼报告厅</td><td><span class="muted">—</span></td></tr></tbody>
+    </table>
+  </section>
+
+  <h2>逐校明细</h2>
+  <section>
+        <h2>本校基准 · 上海科技大学</h2>
+        <p class="note">这一节是我们自己的做法，用来和下面各校比，不是要照搬的对象。</p>
+        
+  <article class="card">
+    <h4><span class="idx">1</span>2026上科大文化艺术季 | 凌云逐序 振羽开新 | 上海科技大学2026级新生晚会倒计时三天！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2026-09-27 · 约第 4 周</span></div><div class="kv"><span class="k">地点</span><span class="v">会议中心</span></div><div class="kv"><span class="k">组织</span><span class="v">线上、线下</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">宣传</span><span class="v">海报、直播、H5</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzI2MzIxMDcxOA==&amp;mid=2650334206&amp;idx=1&amp;sn=8652934c8a3ca51e3bb5c9d3a65a2d35&amp;chksm=f3d4db55360a104b7c2657344e3b9b390ad9e301ece95a4b6109fccedd229a6e8d7a03a3b8e0&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzI2MzIxMDcxOA==&amp;mid=2650334206&amp;idx=1&amp;sn=8652934c8a3ca51e3bb5c9d3a65a2d35&amp;chksm=f3d4db55360a104b7c2657344e3b9b390ad9e301ece95a4b6109fccedd229a6e8d7a03a3b8e0&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">2</span>青春铺路 理想闪光！上科大2026年西部计划、研究生支教团学子出征<span class="flag">待核对 68%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2026-07-03 · 约第 20 周</span></div><div class="kv"><span class="k">地点</span><span class="v">校图书馆</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">面向</span><span class="v">毕业生</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5NTY5OTMxMA==&amp;mid=2651387778&amp;idx=1&amp;sn=ca3247e8b4351ebce9dec9c412c03124&amp;chksm=bc9816b494682097447a6136ef3299472ba2c5ed26fcac0ef2123dd26b2e5c3e1fb773f05797&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5NTY5OTMxMA==&amp;mid=2651387778&amp;idx=1&amp;sn=ca3247e8b4351ebce9dec9c412c03124&amp;chksm=bc9816b494682097447a6136ef3299472ba2c5ed26fcac0ef2123dd26b2e5c3e1fb773f05797&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">3</span>光影大道·回顾｜探寻微光，在实践中绘就我们的光影故事<span class="flag">待核对 68%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-04-25 · 约第 10 周</span></div><div class="kv"><span class="k">地点</span><span class="v">会议中心报告厅</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzU0NzA2MjcwOA==&amp;mid=2247518081&amp;idx=1&amp;sn=0c52c86b69de67019bba726d9bc2ed82&amp;chksm=fa9d20157f79dfec98b61a3a79f2da733c8ebb4f360d4cb65590fa3182db7aa148cba713d204&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzU0NzA2MjcwOA==&amp;mid=2247518081&amp;idx=1&amp;sn=0c52c86b69de67019bba726d9bc2ed82&amp;chksm=fa9d20157f79dfec98b61a3a79f2da733c8ebb4f360d4cb65590fa3182db7aa148cba713d204&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">4</span>科源心启，绘梦同行 | 上海科技大学2022级新生迎新晚会圆满举办</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2022-09-25 · 约第 4 周</span></div><div class="kv"><span class="k">地点</span><span class="v">会议中心</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">新生晚会 → Hype Boy → 不为谁而作的歌 → 我们 → 破阵 → 再飞行 → 葡萄成熟时 → 大鱼</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzI2MzIxMDcxOA==&amp;mid=2650312936&amp;idx=1&amp;sn=2d96433c36cefaf4e7c127b5ef23fb64&amp;chksm=f2b36359c5c4ea4f204097770c787492b277f4792417b8e2703042ff0edaf1e1a4ff2fec7e40&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzI2MzIxMDcxOA==&amp;mid=2650312936&amp;idx=1&amp;sn=2d96433c36cefaf4e7c127b5ef23fb64&amp;chksm=f2b36359c5c4ea4f204097770c787492b277f4792417b8e2703042ff0edaf1e1a4ff2fec7e40&amp;scene=27</a></div>
+  </article>
+      </section>
+  <section class="school">
+      <div class="school-head"><span class="nm">复旦大学</span><span class="ct">17 条</span></div>
+      
+  <article class="card">
+    <h4><span class="idx">1</span>“涌现新生”！欢迎来到迎新晚会！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2026-09-27 · 约第 4 周</span></div><div class="kv"><span class="k">地点</span><span class="v">正大体育馆</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">以渺小之名 → 15love → 不同凡想 → Grenade → 旦复旦 → Sunlight → 二十岁的梦 → 小镇姑娘</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651545639&amp;idx=1&amp;sn=f193f3abdf181f6c176a4f2fc2ecc3a5&amp;chksm=bd85819bef714eba3eacd1a9fb7e58b3b083eef071f0d1d9e2dc23532278606cdd72eb11102a&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651545639&amp;idx=1&amp;sn=f193f3abdf181f6c176a4f2fc2ecc3a5&amp;chksm=bd85819bef714eba3eacd1a9fb7e58b3b083eef071f0d1d9e2dc23532278606cdd72eb11102a&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">2</span>解锁“我的复旦”！2025迎新晚会→</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-09-27 · 约第 4 周</span></div><div class="kv"><span class="k">地点</span><span class="v">正大体育馆</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">回不去的夏天 → 新闻播报 → 我的孵蛋 → Sunlight → 野心家 → 我们的爱 → 二十岁的夏天 → 碇步桥水清悠悠</span></div><div class="line"><span class="k">特色</span><span class="v">独家记忆新生新声</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="http://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651497200&amp;idx=1&amp;sn=c06c0f77908943291f44176167ef0f55&amp;chksm=bdf0c6453ed09a0d99402149766e542796443c75f3866444f3ff8d208a605bd98bb4ca6a10fc">http://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651497200&amp;idx=1&amp;sn=c06c0f77908943291f44176167ef0f55&amp;chksm=bdf0c6453ed09a0d99402149766e542796443c75f3866444f3ff8d208a605bd98bb4ca6a10fc</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">3</span>2025级复旦大学迎新晚会新生节目招募来啦！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-09-27 18:30 · 约第 4 周</span></div><div class="kv"><span class="k">地点</span><span class="v">正大体育馆</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、报名制</span></div><div class="kv"><span class="k">时长</span><span class="v">18:30–20:30</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">宣传</span><span class="v">彩排</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="http://mp.weixin.qq.com/s?__biz=MjM5NDI1MTgyMA==&amp;mid=2650337197&amp;idx=1&amp;sn=58dcc6f06ecefeb9f6b130ba2e99543f&amp;chksm=bf63449d37e7f021d4115a3ae463343e18530532e1413837821528a2b16c256c5310887f472f">http://mp.weixin.qq.com/s?__biz=MjM5NDI1MTgyMA==&amp;mid=2650337197&amp;idx=1&amp;sn=58dcc6f06ecefeb9f6b130ba2e99543f&amp;chksm=bf63449d37e7f021d4115a3ae463343e18530532e1413837821528a2b16c256c5310887f472f</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">4</span>跨专业、换赛道、追热爱，走过不同路径的他们，在复旦管院找到共同的答案<span class="flag">待核对 55%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">发布</span><span class="v">2025-07-19（活动时间原文未写）</span></div><div class="kv"><span class="k">面向</span><span class="v">毕业生</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5OTAzNzg0MA==&amp;mid=2650580824&amp;idx=1&amp;sn=3d5d017cf0e4d164b34bfebd48b4c3a5&amp;chksm=bf7d71e6ffaf35143c5d5ec721bfd7121dd2bb604c1550a1e99dc1075b06a5c50c945fb07283&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5OTAzNzg0MA==&amp;mid=2650580824&amp;idx=1&amp;sn=3d5d017cf0e4d164b34bfebd48b4c3a5&amp;chksm=bf7d71e6ffaf35143c5d5ec721bfd7121dd2bb604c1550a1e99dc1075b06a5c50c945fb07283&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">5</span>面向2025级本科生新生！复旦教育教学改革3.0亮点抢先看<span class="flag">待核对 63%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-05-30 · 约第 15 周</span></div><div class="kv"><span class="k">规模</span><span class="v">1511人</span></div><div class="kv"><span class="k">面向</span><span class="v">全校</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651484592&amp;idx=1&amp;sn=0edeedc3b462d8a6a33ccdc0c142a93a&amp;chksm=bdc9b5a7760efef56c630670dce28c482fa099d74581affcbafacfabafa79dd74042ae05a908&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651484592&amp;idx=1&amp;sn=0edeedc3b462d8a6a33ccdc0c142a93a&amp;chksm=bdc9b5a7760efef56c630670dce28c482fa099d74581affcbafacfabafa79dd74042ae05a908&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">6</span>迎！新！晚！会！燃~<span class="flag">待核对 63%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-09-22 · 约第 4 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">新生的“你” → 二十岁的梦 → 我自己 → 刀马旦 → 青绿 → 梨花颂 → 新生入学指南 → 超声探秘，解锁血管新视界</span></div><div class="line"><span class="k">宣传</span><span class="v">预热</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651464506&amp;idx=2&amp;sn=a61708d4f89aaa9adcbefcfcfd6a5927&amp;chksm=bd22fd97679bbfcf67484a0a5c813f78a4ff72fafa483bb1b2853bd88293fb1ea23a4fe8372e&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651464506&amp;idx=2&amp;sn=a61708d4f89aaa9adcbefcfcfd6a5927&amp;chksm=bd22fd97679bbfcf67484a0a5c813f78a4ff72fafa483bb1b2853bd88293fb1ea23a4fe8372e&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">7</span>回顾｜「枫云决」羽毛球赛赛报</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-05-12 · 约第 12 周</span></div><div class="kv"><span class="k">地点</span><span class="v">枫林校区学生活动中心</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649896745&amp;idx=1&amp;sn=3d977278f1946a9a0beccd9e9e950e13&amp;chksm=be942bdd89e3a2cbed7ff6dc042ec90d36078ff633ad64377702657477c7fc2e57b0c6cacbdf&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649896745&amp;idx=1&amp;sn=3d977278f1946a9a0beccd9e9e950e13&amp;chksm=be942bdd89e3a2cbed7ff6dc042ec90d36078ff633ad64377702657477c7fc2e57b0c6cacbdf&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">8</span>杏林讲堂丨高翔：医语心声——科研与兴趣的平衡</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-04-27 · 约第 10 周</span></div><div class="kv"><span class="k">地点</span><span class="v">学生公寓二楼报告厅</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、联办</span></div><div class="kv"><span class="k">时长</span><span class="v">14:00–16:00</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">协调后可行　依赖跨院系或跨单位联合组织，需先找到对口单位</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649896520&amp;idx=1&amp;sn=240d91ad842d2e59ce98369763096244&amp;chksm=bf197aee688623c8c3df19d1340cb6c29a222c7b493e2990d82b95b51de1f9d369265e13dfbe&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649896520&amp;idx=1&amp;sn=240d91ad842d2e59ce98369763096244&amp;chksm=bf197aee688623c8c3df19d1340cb6c29a222c7b493e2990d82b95b51de1f9d369265e13dfbe&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">9</span>与卿共话丨她有问，她来答——邀你共话医学“她”力量<span class="flag">待核对 68%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-03-08 24:00 · 约第 3 周</span></div><div class="kv"><span class="k">地点</span><span class="v">枫林校区书院二楼报告厅</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、报名制</span></div><div class="kv"><span class="k">时长</span><span class="v">14:00–16:00</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649895853&amp;idx=2&amp;sn=5b615e6c364f3858a7211f61449cddae&amp;chksm=be942f5989e3a64fe07142f18f60dab2f0f0fa873a45d15de0b6d76034ddf5dda6c74de88f32&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649895853&amp;idx=2&amp;sn=5b615e6c364f3858a7211f61449cddae&amp;chksm=be942f5989e3a64fe07142f18f60dab2f0f0fa873a45d15de0b6d76034ddf5dda6c74de88f32&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">10</span>招新丨超酷见面会！尚医龙天降枫林！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-02-27 · 约第 2 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、报名制</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649895778&amp;idx=1&amp;sn=f65a78cfd8f25f3aad879359b7aaabe1&amp;chksm=be942f9689e3a680ba822b5f29e7012c9c9e88856c63b970e6f5bc9cf43532455a56d41f7d11&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649895778&amp;idx=1&amp;sn=f65a78cfd8f25f3aad879359b7aaabe1&amp;chksm=be942f9689e3a680ba822b5f29e7012c9c9e88856c63b970e6f5bc9cf43532455a56d41f7d11&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">11</span>这场迎新晚会，燃爆了！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2023-09-23 · 约第 4 周</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">旦复旦 → 青春记忆 → 勇气大爆发 → 向云端 → Viva La Vida → 狂恋 → 我们的爱 → 青鸟</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651438218&amp;idx=1&amp;sn=a6121eb917ed357c761250e2d2bcbd57&amp;chksm=bded9395f97941cb9f35354e12f8e056c949bc891ff42534b47ff535586749935cd2c0d3d346&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651438218&amp;idx=1&amp;sn=a6121eb917ed357c761250e2d2bcbd57&amp;chksm=bded9395f97941cb9f35354e12f8e056c949bc891ff42534b47ff535586749935cd2c0d3d346&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">12</span>「枫云决」丨篮球在手，决战巅「枫」<span class="flag">待核对 63%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2022-11-25 · 约第 13 周</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649893369&amp;idx=1&amp;sn=069bbcdd4662cfd31463ce2ad3d0a765&amp;chksm=be94350d89e3bc1bde9251c55c7ba298b866980008175f25be18f7f6544f82658c46a7d43b1d&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649893369&amp;idx=1&amp;sn=069bbcdd4662cfd31463ce2ad3d0a765&amp;chksm=be94350d89e3bc1bde9251c55c7ba298b866980008175f25be18f7f6544f82658c46a7d43b1d&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">13</span>你的问题，我们挂心！这个冬天，让我们和你温暖同行<span class="flag">待核对 68%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2022-03-13 · 约第 4 周</span></div><div class="kv"><span class="k">地点</span><span class="v">体育馆</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">面向</span><span class="v">全校</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651417153&amp;idx=1&amp;sn=b20c4fa82a0cdc0505b4d2ce507d0260&amp;chksm=bcc7be4f8bb037592d3ffbdc3777df658e812dc824ace7910194962f20cc7f90c6897e0b7cdb&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5OTUwMzIwMQ==&amp;mid=2651417153&amp;idx=1&amp;sn=b20c4fa82a0cdc0505b4d2ce507d0260&amp;chksm=bcc7be4f8bb037592d3ffbdc3777df658e812dc824ace7910194962f20cc7f90c6897e0b7cdb&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">14</span>保研 | 推免经验分享会回顾</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2022-10-30 · 约第 9 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、联办</span></div><div class="kv"><span class="k">时长</span><span class="v">18:30–22:00</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">协调后可行　依赖跨院系或跨单位联合组织，需先找到对口单位</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649892839&amp;idx=1&amp;sn=b8fbb76ce648c3bb58a300f8f517818c&amp;chksm=be943b1389e3b2057a2207fa9bed656ad4ca4308d5d48f9f24273fe464d8cd5f57327b59c7e3&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649892839&amp;idx=1&amp;sn=b8fbb76ce648c3bb58a300f8f517818c&amp;chksm=be943b1389e3b2057a2207fa9bed656ad4ca4308d5d48f9f24273fe464d8cd5f57327b59c7e3&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">15</span>「枫云决」丨羽里生花<span class="flag">待核对 60%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">发布</span><span class="v">2022-10-06（活动时间原文未写）</span></div><div class="kv"><span class="k">地点</span><span class="v">枫林校区学生活动中心</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、联办、报名制</span></div><div class="kv"><span class="k">协办</span><span class="v">复旦大学枫林校区羽毛球协会</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">协调后可行　依赖跨院系或跨单位联合组织，需先找到对口单位</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649892526&amp;idx=1&amp;sn=91a9feca7ab955ef9b8da605cf6353f1&amp;chksm=be943a5a89e3b34c9b638678802b315b9ad1cb8529b538e5dece994a1cae8e9f550223df3399&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649892526&amp;idx=1&amp;sn=91a9feca7ab955ef9b8da605cf6353f1&amp;chksm=be943a5a89e3b34c9b638678802b315b9ad1cb8529b538e5dece994a1cae8e9f550223df3399&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">16</span>新生杯篮球赛 | 龙争虎斗，你“新”你上！</h4>
+    <div class="meta"><div class="kv"><span class="k">发布</span><span class="v">2022-09-17（活动时间原文未写）</span></div><div class="kv"><span class="k">地点</span><span class="v">南区篮球场</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、报名制</span></div><div class="kv"><span class="k">规模</span><span class="v">15人</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">宣传</span><span class="v">海报</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5NDI1MTgyMA==&amp;mid=2650312708&amp;idx=2&amp;sn=bc8c1f7fb90399379dfc7add7d3204b9&amp;chksm=be86a54789f12c518763f4372aef2b10ebd90f79a3bd917148a4fe755e8d639be3804d0941f1&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5NDI1MTgyMA==&amp;mid=2650312708&amp;idx=2&amp;sn=bc8c1f7fb90399379dfc7add7d3204b9&amp;chksm=be86a54789f12c518763f4372aef2b10ebd90f79a3bd917148a4fe755e8d639be3804d0941f1&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">17</span>福庆沙龙 | 科研经验线上系列分享会（共4期）</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2022-04-22 · 约第 9 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线上、报名制</span></div><div class="kv"><span class="k">时长</span><span class="v">19:00–20:00</span></div><div class="kv"><span class="k">面向</span><span class="v">毕业生</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学生活动，规模与形式接近，可参照执行</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649891355&amp;idx=1&amp;sn=cd46917a31f76b3980b2d5211317db5b&amp;chksm=be943eef89e3b7f936c04ce1d4b3ef2bf67c1d07df45c855b6921b3274f86f1d71e5e4e4c89f&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzcyMTc1NQ==&amp;mid=2649891355&amp;idx=1&amp;sn=cd46917a31f76b3980b2d5211317db5b&amp;chksm=be943eef89e3b7f936c04ce1d4b3ef2bf67c1d07df45c855b6921b3274f86f1d71e5e4e4c89f&amp;scene=27</a></div>
+  </article>
+    </section><section class="school">
+      <div class="school-head"><span class="nm">上海大学</span><span class="ct">6 条</span></div>
+      
+  <article class="card">
+    <h4><span class="idx">1</span>青春出彩 向新而行丨上海大学2026年迎新晚会圆满落幕！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2026-09-20 · 约第 3 周</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">This Is for → 百花引 → 赛马 → 龙腾虎跃 → 魔幻迎新礼 → 有“戏” → 理想闪光 → 风启新叶</span></div><div class="line"><span class="k">特色</span><span class="v">独家记忆</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzAwMDA1MTYwMw==&amp;mid=2650944264&amp;idx=1&amp;sn=3f944938be4234264b144bd5e55cf713&amp;chksm=800abe767918464d5206be129204ad4687450def6b01003a700a891fb7895637508d560ea95f&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzAwMDA1MTYwMw==&amp;mid=2650944264&amp;idx=1&amp;sn=3f944938be4234264b144bd5e55cf713&amp;chksm=800abe767918464d5206be129204ad4687450def6b01003a700a891fb7895637508d560ea95f&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">2</span>青春闪光 “泮”你登场！上海大学2025年迎新晚会回顾</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-09-19 · 约第 3 周</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">登场 → 锦绣风华 → 第二号圆舞曲 → 花YOUNG上大武动青春 → 青春的模样 → 未来已来 → 势不可挡 → 新声无限</span></div><div class="line"><span class="k">特色</span><span class="v">晚会以师生校友共创；独家记忆</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzAwMDA1MTYwMw==&amp;mid=2650928068&amp;idx=1&amp;sn=d67fe52d4a26e54bbc6517efdba39469&amp;chksm=80bdb9bd2e499c9ab57d63caa3542f8db641db33b123fc299f83c033f389936c4995d0d20ffa&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzAwMDA1MTYwMw==&amp;mid=2650928068&amp;idx=1&amp;sn=d67fe52d4a26e54bbc6517efdba39469&amp;chksm=80bdb9bd2e499c9ab57d63caa3542f8db641db33b123fc299f83c033f389936c4995d0d20ffa&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">3</span>逐梦上大，青春启航！上海大学2025级新生开学典礼举行！<span class="flag">待核对 63%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-09-19 · 约第 3 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线上、线下</span></div><div class="kv"><span class="k">面向</span><span class="v">全校</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">出发吧！青年 → 习近平与大学生朋友们 → 大国功勋 → 光荣之城：上海红色纪念地100 → 上海大学（1922-1927）全史</span></div><div class="line"><span class="k">宣传</span><span class="v">直播</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5NDQyMjY0MA==&amp;mid=2651137940&amp;idx=1&amp;sn=0aa567cb7a6257f6ce29c15cdc1d8fb9&amp;chksm=bce612ee34eefd4b599c0f1514b57a5f4733e9ba628c54bac638f5a4d85dc1622d7527dad6a6&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5NDQyMjY0MA==&amp;mid=2651137940&amp;idx=1&amp;sn=0aa567cb7a6257f6ce29c15cdc1d8fb9&amp;chksm=bce612ee34eefd4b599c0f1514b57a5f4733e9ba628c54bac638f5a4d85dc1622d7527dad6a6&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">4</span>敬请期待！上海大学2025级新生开学典礼预告来啦！<span class="flag">待核对 63%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-09-19 18:30 · 约第 3 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线上</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">宣传</span><span class="v">预告、视频号、直播</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzA5NzU4MDYxNQ==&amp;mid=2652997003&amp;idx=1&amp;sn=c7840ea469dcbb779dfa046ef9d03bec&amp;chksm=8adbc588d513f4e7a4b3e4bd5ee874db6b4400f741527297c0e93d79a7a1116931b67a7c97e6&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzA5NzU4MDYxNQ==&amp;mid=2652997003&amp;idx=1&amp;sn=c7840ea469dcbb779dfa046ef9d03bec&amp;chksm=8adbc588d513f4e7a4b3e4bd5ee874db6b4400f741527297c0e93d79a7a1116931b67a7c97e6&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">5</span>青春当“燃”，强国有我！上海大学2024级新生开学典礼暨迎新晚会举行</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-08-23 · 约第 1 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线上、线下、联办</span></div><div class="kv"><span class="k">面向</span><span class="v">全校</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">向上的力量 → 以创新为本 与时代共舞 → 胸怀“国之大者” 精细“方寸之间” → 习近平与大学生朋友们 → 百年上大画传 → 光荣之城：上海红色纪念地100 → AIGC未来已来迈向通用人工智能时代 → 我的祖国2024</span></div><div class="line"><span class="k">宣传</span><span class="v">直播</span></div><div class="line"><span class="k">可迁移</span><span class="v">协调后可行　依赖跨院系或跨单位联合组织，需先找到对口单位</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzIyNTkwMjc1Nw==&amp;mid=2247690705&amp;idx=1&amp;sn=bbddc869ee9c561f9e1d24a24ab35c57&amp;chksm=e875001bdf02890d9a755d79d585ceb8afb6aa6883ad9e8f0a9252b3fd17c1bdb0a7b7b345b9&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzIyNTkwMjc1Nw==&amp;mid=2247690705&amp;idx=1&amp;sn=bbddc869ee9c561f9e1d24a24ab35c57&amp;chksm=e875001bdf02890d9a755d79d585ceb8afb6aa6883ad9e8f0a9252b3fd17c1bdb0a7b7b345b9&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">6</span>敬请期待！上海大学2024级新生开学典礼与你不见不散！<span class="flag">待核对 63%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-08-23 18:30 · 约第 1 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线上</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">宣传</span><span class="v">视频号、直播</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzAwMDA1MTYwMw==&amp;mid=2650890004&amp;idx=1&amp;sn=ada8569ffa2e81ebf116cbebba7e9da1&amp;chksm=8042747a1c240c1531ccf2d48e0475f165d7fef3755ed7c11a4dc94b692fdd896e974ff3b92e&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzAwMDA1MTYwMw==&amp;mid=2650890004&amp;idx=1&amp;sn=ada8569ffa2e81ebf116cbebba7e9da1&amp;chksm=8042747a1c240c1531ccf2d48e0475f165d7fef3755ed7c11a4dc94b692fdd896e974ff3b92e&amp;scene=27</a></div>
+  </article>
+    </section><section class="school">
+      <div class="school-head"><span class="nm">同济大学</span><span class="ct">6 条</span></div>
+      
+  <article class="card">
+    <h4><span class="idx">1</span>济“艺”星火耀新程丨校迎新晚会里的艺传力量</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2026-10-09 · 约第 6 周</span></div><div class="kv"><span class="k">地点</span><span class="v">四平路校区大礼堂</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、报名制</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzA5NzM2NTg5MQ==&amp;mid=2650994465&amp;idx=1&amp;sn=ba9b187f3e50568ab89e20db4617963b&amp;chksm=8a1044a57e381fa902ef36d8dd35188a9fe41fc5c22ddd19a064776153b45ec9f66617b19b6f&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzA5NzM2NTg5MQ==&amp;mid=2650994465&amp;idx=1&amp;sn=ba9b187f3e50568ab89e20db4617963b&amp;chksm=8a1044a57e381fa902ef36d8dd35188a9fe41fc5c22ddd19a064776153b45ec9f66617b19b6f&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">2</span>八秩法脉 共济新程丨同济大学法学院成立八十周年暨2025年迎新晚会顺利举行！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-12-19 · 约第 16 周</span></div><div class="kv"><span class="k">地点</span><span class="v">四平路校区一·二九礼堂</span></div><div class="kv"><span class="k">面向</span><span class="v">全校</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">同济大学法学院建院80周年祝福视频 → 第一天 → 创路漫漫同法情 → 给法律人的情书 → The Whole Rest → 万花 → 弦歌不辍 砥砺同行</span></div><div class="line"><span class="k">可迁移</span><span class="v">协调后可行　场地与本校特有资源绑定，需先落实替代场地</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=Mzk0MjI0MzkyMA==&amp;mid=2247510274&amp;idx=2&amp;sn=240a3ea330d421c8cf4ea7344fce1cdf&amp;chksm=c315f2495c8493540b805b28507afb1602e9500e707ef4e7cd37ba147a002349c2f33d4284a2&amp;scene=27">https://mp.weixin.qq.com/s?__biz=Mzk0MjI0MzkyMA==&amp;mid=2247510274&amp;idx=2&amp;sn=240a3ea330d421c8cf4ea7344fce1cdf&amp;chksm=c315f2495c8493540b805b28507afb1602e9500e707ef4e7cd37ba147a002349c2f33d4284a2&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">3</span>2025迎新晚会精彩回顾(二) | 迎新晚会背后，了不起的“我们”！</h4>
+    <div class="meta"><div class="kv"><span class="k">发布</span><span class="v">2025-10-08（活动时间原文未写）</span></div><div class="kv"><span class="k">地点</span><span class="v">大礼堂</span></div><div class="kv"><span class="k">组织</span><span class="v">线上、线下</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">宣传</span><span class="v">彩排</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5NTExNDExMQ==&amp;mid=2651841689&amp;idx=1&amp;sn=173a12887e68eab21dfc81ffe88bc0f8&amp;chksm=bc42b2755afb5fbbf2bd4c5f3039382b4fca3ebaa48af59d8b9a5800c65e72e23f9ea6ce4449&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5NTExNDExMQ==&amp;mid=2651841689&amp;idx=1&amp;sn=173a12887e68eab21dfc81ffe88bc0f8&amp;chksm=bc42b2755afb5fbbf2bd4c5f3039382b4fca3ebaa48af59d8b9a5800c65e72e23f9ea6ce4449&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">4</span>2025迎新晚会 | 出演团队详情放送！请查收~（第四弹）</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-09-26 · 约第 4 周</span></div><div class="kv"><span class="k">地点</span><span class="v">45四平路校区大礼堂</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">同济宝藏团队 → 国家宝藏 → 同济宝藏</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5NTExNDExMQ==&amp;mid=2651841532&amp;idx=2&amp;sn=125468349ba8015b36a62207ec25019d&amp;chksm=bc3b36f1c485ba9a4cacd6a8aa0a4528daba711f8781ca5d94056a589682cda99bf4e2d7530f&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5NTExNDExMQ==&amp;mid=2651841532&amp;idx=2&amp;sn=125468349ba8015b36a62207ec25019d&amp;chksm=bc3b36f1c485ba9a4cacd6a8aa0a4528daba711f8781ca5d94056a589682cda99bf4e2d7530f&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">5</span>“济遇芳华 艺谱新篇”丨2024年艺术与传媒学院师生迎新晚会成功举办</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-12-03 · 约第 14 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">规模</span><span class="v">503人</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">Feel special → 青春舞步 → 不该 → 青春不设限 → 会开花的云 → 天鹅 → 我，堂吉诃德 → 如愿</span></div><div class="line"><span class="k">宣传</span><span class="v">抽奖</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzA5NzM2NTg5MQ==&amp;mid=2650970917&amp;idx=1&amp;sn=de9b59a04a2a22020a84a18924712cae&amp;chksm=8a0938dbea804bad52500ad1333c85b0f6d08a0be556e8f90ab4b6762f4e96d835b7d05f6c2e&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzA5NzM2NTg5MQ==&amp;mid=2650970917&amp;idx=1&amp;sn=de9b59a04a2a22020a84a18924712cae&amp;chksm=8a0938dbea804bad52500ad1333c85b0f6d08a0be556e8f90ab4b6762f4e96d835b7d05f6c2e&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">6</span>“同心越山海，济艺颂华诞”迎新晚会圆满落幕！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-09-27 · 约第 4 周</span></div><div class="kv"><span class="k">地点</span><span class="v">四平路校区大礼堂</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">华诞庆舞 → 今天我想对你说 → 东方红 → 咏梅 → 思念 → 梦济旅人 → 国家宝藏 → 同济宝藏之钱钟仪抗战前遗书手记</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5NTExNDExMQ==&amp;mid=2651837968&amp;idx=1&amp;sn=c62238b455b1c512573eb224d3b3c6f3&amp;chksm=bd060b008a718216efd72c00924b42105f90c303389a44ef6262b55ab736a2060c46b7ebad5c&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5NTExNDExMQ==&amp;mid=2651837968&amp;idx=1&amp;sn=c62238b455b1c512573eb224d3b3c6f3&amp;chksm=bd060b008a718216efd72c00924b42105f90c303389a44ef6262b55ab736a2060c46b7ebad5c&amp;scene=27</a></div>
+  </article>
+    </section><section class="school">
+      <div class="school-head"><span class="nm">上海交通大学</span><span class="ct">5 条</span></div>
+      
+  <article class="card">
+    <h4><span class="idx">1</span>新医梦·新华情丨2025年新华临床医学院迎新晚会倒计时1天！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-10-30 18:00 · 约第 9 周</span></div><div class="kv"><span class="k">地点</span><span class="v">:30地点新华医院科教楼一楼报告厅</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">时长</span><span class="v">18:00–19:30</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">双黄蛋 → 飞鸟髻 → 保“胃”健康，神奇的一口气 → 知否知否 → 帮规第十条：心肺复苏要趁早 → 有我</span></div><div class="line"><span class="k">宣传</span><span class="v">抽奖</span></div><div class="line"><span class="k">可迁移</span><span class="v">现成条件可办　常规学年活动，本校有对应组织基础，可直接对照流程</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MzE2MjU5OQ==&amp;mid=2649929286&amp;idx=3&amp;sn=04b7bea5a93dcbfc40bc20774de5e2a5&amp;chksm=bfda4a598bd62df7ca205aff81b08f391989bd31096bf6cdb8c2550a1a906cb622b364644c2e&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MzE2MjU5OQ==&amp;mid=2649929286&amp;idx=3&amp;sn=04b7bea5a93dcbfc40bc20774de5e2a5&amp;chksm=bfda4a598bd62df7ca205aff81b08f391989bd31096bf6cdb8c2550a1a906cb622b364644c2e&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">2</span>敢梦敢为 星耀寰宇｜交大安泰EMBA2025级迎新晚会暨在校生联合会四周年庆</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2025-09-14 · 约第 2 周</span></div><div class="kv"><span class="k">地点</span><span class="v">徐汇校区包兆龙图书馆</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、联办</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">加入信仰的火车 → 加入信仰的列车 → 西行欢乐颂 → 穿越商海：企业家的时空奇遇 → 喜欢上海的理由 → 闻香识女人 → 我的未来不是梦 → 国风DISCO</span></div><div class="line"><span class="k">可迁移</span><span class="v">协调后可行　场地与本校特有资源绑定，需先落实替代场地</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5ODI3MDYzMg==&amp;mid=2652815510&amp;idx=1&amp;sn=6fe71530f6665c94e775458dcb1acef5&amp;chksm=bc13823ca25f416e2d91a2c7a828240339955bc58411343cd0a7d2ea1ec973a3de559d637409&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5ODI3MDYzMg==&amp;mid=2652815510&amp;idx=1&amp;sn=6fe71530f6665c94e775458dcb1acef5&amp;chksm=bc13823ca25f416e2d91a2c7a828240339955bc58411343cd0a7d2ea1ec973a3de559d637409&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">3</span>朝阳初升，昕光启程 | 2024年材料学院「初昕」迎新晚会圆满落幕！</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2024-10-29 · 约第 9 周</span></div><div class="kv"><span class="k">地点</span><span class="v">李政道报告厅</span></div><div class="kv"><span class="k">组织</span><span class="v">线下</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">歌曲串烧 → Wannabe → 魔术的极限 → 钢琴流行古典曲目串烧 → 青花瓷 → 遇见 → 洛春赋 → 金沙</span></div><div class="line"><span class="k">宣传</span><span class="v">抽奖、图文</span></div><div class="line"><span class="k">可迁移</span><span class="v">协调后可行　场地与本校特有资源绑定，需先落实替代场地</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzU2NzE0OTc1NQ==&amp;mid=2247505672&amp;idx=2&amp;sn=ee2c4caa7ca02e09e66d64ec69525d8b&amp;chksm=fd62f21772c7f74f6a69cca2cce210d78cfd802c20560f4db60b95060739ebabfcfd2615fb8a&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzU2NzE0OTc1NQ==&amp;mid=2247505672&amp;idx=2&amp;sn=ee2c4caa7ca02e09e66d64ec69525d8b&amp;chksm=fd62f21772c7f74f6a69cca2cce210d78cfd802c20560f4db60b95060739ebabfcfd2615fb8a&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">4</span>上海交通大学安泰MBA(深圳)2024年迎新晚会圆满落幕</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2023-11-04 · 约第 10 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、联办</span></div><div class="kv"><span class="k">规模</span><span class="v">250余人</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">宣传</span><span class="v">预热、抽奖</span></div><div class="line"><span class="k">可迁移</span><span class="v">协调后可行　依赖跨院系或跨单位联合组织，需先找到对口单位</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MjM5MTQ1MTUwMQ==&amp;mid=2653980518&amp;idx=1&amp;sn=e8004460a43dfc6d2443b22c54ba2f0a&amp;chksm=bd7177648a06fe724a9ccbf3303dd42463cdef2200319a71f0e0f404b6432182ad40887a2e84&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MjM5MTQ1MTUwMQ==&amp;mid=2653980518&amp;idx=1&amp;sn=e8004460a43dfc6d2443b22c54ba2f0a&amp;chksm=bd7177648a06fe724a9ccbf3303dd42463cdef2200319a71f0e0f404b6432182ad40887a2e84&amp;scene=27</a></div>
+  </article>
+  <article class="card">
+    <h4><span class="idx">5</span>“共赏上林花”——2023级致远荣誉计划迎新晚会顺利举行</h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2023-11-11 · 约第 11 周</span></div><div class="kv"><span class="k">地点</span><span class="v">李政道图书馆B1报告厅</span></div><div class="kv"><span class="k">组织</span><span class="v">线上、线下</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">议程</span><span class="v">小城夏天 → 实验室肌肉男制备白雪小曲奇 → 光年之外 → Butter-fly → 新新向荣 → 月光奏鸣曲 → 雪花的快乐 → 夜空中最亮的星</span></div><div class="line"><span class="k">宣传</span><span class="v">直播</span></div><div class="line"><span class="k">可迁移</span><span class="v">协调后可行　场地与本校特有资源绑定，需先落实替代场地</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzUxNzE2NjUyMw==&amp;mid=2247496269&amp;idx=1&amp;sn=5c803589d7aa1f782f38cc830c6b6d3a&amp;chksm=f99ef699cee97f8f36d21a55fd0cc8af29e3132a5f69a7a217dd8602bca7613bfc2b667d93c5&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzUxNzE2NjUyMw==&amp;mid=2247496269&amp;idx=1&amp;sn=5c803589d7aa1f782f38cc830c6b6d3a&amp;chksm=f99ef699cee97f8f36d21a55fd0cc8af29e3132a5f69a7a217dd8602bca7613bfc2b667d93c5&amp;scene=27</a></div>
+  </article>
+    </section><section class="school">
+      <div class="school-head"><span class="nm">华东政法大学</span><span class="ct">1 条</span></div>
+      
+  <article class="card">
+    <h4><span class="idx">1</span>金风十月践使命，秋日服务正当时<span class="flag">待核对 63%</span></h4>
+    <div class="meta"><div class="kv"><span class="k">时间</span><span class="v">2026-10-23 · 约第 8 周</span></div><div class="kv"><span class="k">组织</span><span class="v">线下、联办</span></div><div class="kv"><span class="k">规模</span><span class="v">18支队伍</span></div><div class="kv"><span class="k">面向</span><span class="v">新生</span></div></div>
+    <div class="line"><span class="k">可迁移</span><span class="v">协调后可行　依赖跨院系或跨单位联合组织，需先找到对口单位</span></div>
+    <div class="src">原文 · <a href="https://mp.weixin.qq.com/s?__biz=MzA5OTg1NjczMw==&amp;mid=2697925848&amp;idx=1&amp;sn=9f57cfe4a074e5922cc5c6b0aa5462ec&amp;chksm=b42a164660110705f0028bc8b8bdf76c3eefc446a64724c66eba823e2aec87cc18f7c23dcac4&amp;scene=27">https://mp.weixin.qq.com/s?__biz=MzA5OTg1NjczMw==&amp;mid=2697925848&amp;idx=1&amp;sn=9f57cfe4a074e5922cc5c6b0aa5462ec&amp;chksm=b42a164660110705f0028bc8b8bdf76c3eefc446a64724c66eba823e2aec87cc18f7c23dcac4&amp;scene=27</a></div>
+  </article>
+    </section>
+
+  <footer>
+    字段说明：时间、地点、协办、时长、规模均取自公众号原文，原文没写就不列。
+    周次为按开学日推算的近似值，各校校历不同，仅供参考。
+    标「待核对」的条目抽取把握不足七成，据此做决定前请对照原文。
+    <br>本报告由「知枢」跨校对标库生成，所有条目均可点击原文链接回溯。
+  </footer>
+</div>
+</body>
+</html>
