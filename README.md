@@ -9,27 +9,31 @@
 
 ## 别人怎么拿到它
 
-结论：**从 [Releases](https://github.com/ciqiongovo/aicampus/releases) 下载打包好的文件，
-不要 clone 源码自己编译。**
+结论：**从 [Releases](https://github.com/ciqiongovo/aicampus/releases) 下载，不要 clone 源码自己编译。**
+只想看结论就下那个 HTML，一步到位；想试软件就下分片，用合并页还原。
 
-仓库里只有源码：`.gitignore` 排除了 `release/`、`out-dist*/` 和体验包目录，能双击运行的
-exe 与体验包都挂在 Release 的 Assets 里。
+仓库里只有源码：`.gitignore` 排除了 `release/`、`out-dist*/` 和体验包目录。
+上传通道对 100 MB 以上的文件不稳，所以两个程序文件在 Release 里切成了 48 MB 的分片。
 
-| 给谁 | 下什么 | 对方要做什么 |
+| 目的 | 在 Releases 页下什么 | 怎么用 |
 |---|---|---|
-| 只想看结果 | [`output/知枢-对标报告-示例.html`](output/知枢-对标报告-示例.html)（68 KB，仓库里也有一份） | 双击打开，Ctrl+P 存 PDF。不装东西、不联网 |
-| 想试软件 | Release 里的 `知枢-体验包.zip`（约 155 MB） | **整个文件夹解压** → 双击「知枢.exe」；自带 13 校 / 39 场示例库，不碰他已有数据 |
-| 自己长期用 | Release 里的 `ZhiShu-1.0.0-portable.exe`（约 106 MB） | 双击；数据落在 `%APPDATA%\ZhiShu` |
+| 只想看结果 | `ZhiShu-Sample-Report.html`（68 KB） | 双击打开，Ctrl+P 存 PDF。不装东西、不联网。仓库里也有一份 [`output/知枢-对标报告-示例.html`](output/知枢-对标报告-示例.html) |
+| 想试软件 | `ZhiShu-Demo-Pack.zip.part1…part4` + `ZhiShu-Merge.html` | 打开合并页 → 一次选中 4 片 → 点「合并并下载」，还原出 155 MB 的体验包；**整个文件夹解压** → 双击「知枢.exe」 |
+| 自己长期用 | `ZhiShu-1.0.0-portable.exe.part1…part3` + 同一个合并页 | 还原出 106 MB 的单文件 exe，双击即用，数据落在 `%APPDATA%\ZhiShu` |
+
+合并页是纯本地网页：不联网、不上传，拼完自动核对 SHA-256，少下一片会直接报错。
+嫌分片麻烦，找作者要完整的 zip / exe（微信、网盘、U 盘）也行，或者自己按下面的命令构建。
+合并页在仓库里也存了一份 [`output/知枢-合并分片.html`](output/知枢-合并分片.html)。
 
 两个 exe 都没买代码签名证书，Windows 第一次打开可能弹「已保护你的电脑」：
 点「更多信息」→「仍要运行」。不放心就只看 HTML 报告，一样能看到全部结论。
 
-下载后核一遍校验和（也写在 Release 说明里）：
+还原出来的文件，SHA-256 应为：
 
 ```
-知枢-体验包.zip            sha256  7dd5e9eb729fba9694a387924a577913f7f595d28b260e184fd9f75680f76bdd
+ZhiShu-Demo-Pack.zip       sha256  7dd5e9eb729fba9694a387924a577913f7f595d28b260e184fd9f75680f76bdd
 ZhiShu-1.0.0-portable.exe  sha256  feed463c6b6195563ec5f2863e2138c9af0052b5324b67172c7392bda779351f
-知枢-对标报告-示例.html     sha256  d475b5184daa5d237f7044ab0f0424d2fad267aabfcf6b8b9c6d73aceaa9fa11
+ZhiShu-Sample-Report.html  sha256  d475b5184daa5d237f7044ab0f0424d2fad267aabfcf6b8b9c6d73aceaa9fa11
 ```
 
 仓库里另有一份干净示例库 `output/知枢-示例数据-zhishu.db`，只含对标数据（29 校 / 42 源 /
