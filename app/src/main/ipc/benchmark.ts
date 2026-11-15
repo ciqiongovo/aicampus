@@ -9,7 +9,7 @@ import type {
   BenchArticleFilter,
   BenchSourceCategory
 } from '../../shared/benchmark'
-import { BENCH_IPC } from '../../shared/benchmark'
+import { BENCH_IPC, BENCH_PROGRESS_CHANNEL } from '../../shared/benchmark'
 import type { BenchmarkService } from '../services/benchmark/service'
 
 export interface BenchIpcMainLike {
@@ -80,4 +80,52 @@ export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkSe
   ipcMain.handle(BENCH_IPC.benchKinds, () => service.kinds())
 
   ipcMain.handle(BENCH_IPC.benchBrief, (_e, filter: unknown) => service.brief(asFilter(filter)))
+
+  // ---------------- v1.0：按学校采集 ----------------
+
+  ipcMain.handle(BENCH_IPC.benchSchoolList, () => service.schoolList())
+
+  ipcMain.handle(BENCH_IPC.benchSchoolToggle, (_e, name: unknown, enabled: unknown) => {
+    if (typeof name !== 'string' || !name.trim()) return false
+    service.toggleSchool(name, enabled !== false)
+    return true
+  })
+
+  ipcMain.handle(BENCH_IPC.benchSchoolHome, (_e, name: unknown) => {
+    if (typeof name !== 'string' || !name.trim()) return false
+    service.setHomeSchool(name)
+    return true
+  })
+
+  ipcMain.handle(BENCH_IPC.benchSchoolCandidates, (_e, name: unknown) =>
+    typeof name === 'string' ? service.candidates(name) : []
+  )
+
+  ipcMain.handle(
+    BENCH_IPC.benchDiscover,
+    async (event: unknown, name: unknown, accounts: unknown) => {
+      if (typeof name !== 'string' || !name.trim()) throw new Error('没指定学校')
+      const list = Array.isArray(accounts)
+        ? accounts.filter((a): a is string => typeof a === 'string')
+        : undefined
+      // 进度往发起调用的那个窗口回推：多窗口时不能广播到别人那儿去
+      const send = (event as { sender?: { send?: (channel: string, payload: unknown) => void } })
+        ?.sender?.send
+      return service.discover(name, list, (p) => {
+        send?.(BENCH_PROGRESS_CHANNEL, { school: name, ...p })
+      })
+    }
+  )
+
+  ipcMain.handle(BENCH_IPC.benchProspects, (_e, school: unknown) =>
+    service.prospects(typeof school === 'string' && school.trim() ? school : undefined)
+  )
+
+  ipcMain.handle(BENCH_IPC.benchSeedImport, (_e, school: unknown) =>
+    service.seedImport(typeof school === 'string' && school.trim() ? school : undefined)
+  )
+
+  ipcMain.handle(BENCH_IPC.benchHomeCompare, (_e, articleId: unknown) =>
+    typeof articleId === 'number' ? service.homeCompare(articleId) : []
+  )
 }

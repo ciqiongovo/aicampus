@@ -22,8 +22,33 @@ export const BENCH_IPC = {
   benchStats: 'bench:stats',
   benchSchools: 'bench:schools',
   benchKinds: 'bench:kinds',
-  benchBrief: 'bench:brief'
+  benchBrief: 'bench:brief',
+  // ---- v1.0：选学校采集 ----
+  benchSchoolList: 'bench:school-list',
+  benchSchoolToggle: 'bench:school-toggle',
+  benchSchoolHome: 'bench:school-home',
+  benchSchoolCandidates: 'bench:school-candidates',
+  benchDiscover: 'bench:discover',
+  benchProspects: 'bench:prospects',
+  benchSeedImport: 'bench:seed-import',
+  benchHomeCompare: 'bench:home-compare'
 } as const
+
+/**
+ * 进度推送通道。
+ *
+ * 不放进 BENCH_IPC：那张表里的每一项都会被 preload 生成成 invoke 方法，
+ * 而进度是主进程主动推过来的，方向相反。混在一起会多出一个永远没人用的方法。
+ */
+export const BENCH_PROGRESS_CHANNEL = 'bench:progress'
+
+export interface BenchProgressEvent {
+  school: string
+  current: number
+  total: number
+  account: string
+  note: string
+}
 
 // ---------- 枚举 ----------
 
@@ -58,6 +83,71 @@ export interface BenchSourceInfo {
   lastArticleAt: string | null
 }
 
+/**
+ * 一所可选的对标学校。
+ *
+ * 这张清单决定「要去谁家找」，不是「已经采到了谁」。两者必须分开显示：
+ * 勾了复旦不等于已经有复旦的数据，否则用户会以为点一下就有。
+ */
+export interface BenchSchoolInfo {
+  id: number
+  name: string
+  shortName: string
+  /** 本校。对标的意义在于替本校做决定，本校自己要有一行基准 */
+  isHome: boolean
+  /** 是否在采集范围内 */
+  enabled: boolean
+  /** 库里该校已有多少篇文章 */
+  articleCount: number
+  /** 库里该校已抽出多少场活动 */
+  activityCount: number
+  /** 已确认存在的公众号数 */
+  sourceCount: number
+  /** 这一轮打算去搜的账号名：查证过的在前，按套路猜的在后 */
+  candidates: string[]
+  /** 其中已经查证确实存在的号。这批不用再搜名字对不对，直接能用 */
+  knownAccounts: string[]
+}
+
+/**
+ * 待发现的公众号。
+ *
+ * untried：还没搜过
+ * found：搜到过文章，可以当源用
+ * empty：搜过但一条微信链接都没有（账号名猜错了，或这个号根本不存在）
+ * blocked：撞上搜索验证码，等冷却
+ */
+export type BenchProspectStatus = 'untried' | 'found' | 'empty' | 'blocked'
+
+export interface BenchProspectInfo {
+  id: number
+  school: string
+  accountName: string
+  category: BenchSourceCategory
+  status: BenchProspectStatus
+  hitCount: number
+  lastTriedAt: string | null
+  note: string
+}
+
+export interface BenchDiscoverResult {
+  /** 这次实际发出的搜索请求数 */
+  requests: number
+  /** 新入队的文章数 */
+  accepted: number
+  /** 已存在跳过的 */
+  duplicated: number
+  /** 搜到链接的账号数 */
+  accountsHit: number
+  /**
+   * 是否因为连续撞验证码而提前收工。
+   * 这不是「什么都没找到」，是「现在再搜也是白费」，界面必须分开说。
+   */
+  blocked: boolean
+  /** 人话版的收工原因，直接显示给用户 */
+  message: string
+}
+
 export interface BenchArticleInfo {
   id: number
   sourceId: number | null
@@ -78,6 +168,8 @@ export interface BenchArticleInfo {
   noticeKind: BenchNoticeKind
   /** 可迁移性，未评为空串 */
   migrationFit: BenchMigrationFit
+  /** 是否本校。本校条目在列表里要标出来，它是基准行，不是要模仿的对象 */
+  isHome: boolean
   fetchedAt: string | null
   error: string
 }
@@ -102,10 +194,21 @@ export interface BenchActivityInfo {
   orgForm: string
   /** 参与方式：报名、抢票、扫码进群… */
   joinMethod: string
+  /** 协办单位：学院、社团、赞助方。联办是很多活动办得起来的原因，不能只看主办 */
+  coOrganizer: string
+  /** 活动时长：一晚 / 两天 / 持续一周，决定了它占多少人力 */
+  duration: string
+  /** 规模：参与人数、观众规模，原文写了才有 */
+  scale: string
   /** 宣传形式：直播、抽奖、海报、短视频… */
   promoChannels: string[]
   /** 议程与特色环节：各校「学生会全体大会」的差别主要在这些环节上 */
   agenda: string[]
+  /**
+   * 特色环节：这个活动里最不一样的那几处。
+   * 与 agenda 分开是因为用途不同——议程回答「流程怎么走」，特色回答「凭什么值得学」。
+   */
+  highlights: string[]
   isSecondNotice: boolean
   noticeKind: BenchNoticeKind
   /** 可迁移性：结合本校条件，这件事搬过来做不做得到 */
@@ -212,11 +315,17 @@ export interface BenchBriefItem {
   location: string
   orgForm: string
   audience: string
+  coOrganizer: string
+  duration: string
+  scale: string
   agenda: string[]
+  highlights: string[]
   /** 宣传形式：预热、抽奖、直播这类手段，原文里出现的 */
   promoChannels: string[]
   migrationFit: BenchMigrationFit
   migrationNote: string
+  /** 是否本校，本校条目在简报里单列一节当基准 */
+  isHome: boolean
   /** 抽取把握，低于 0.7 的会被标注「待核对」 */
   confidence: number
 }
@@ -258,6 +367,35 @@ export interface BenchApi {
   benchKinds(): Promise<string[]>
   /** 按当前筛选条件生成简报；同条件重复调用结果一致，不做缓存 */
   benchBrief(filter: BenchArticleFilter): Promise<BenchBrief>
+
+  // ---- v1.0：按学校采集 ----
+
+  /** 可选学校清单，带「已采到多少」的统计 */
+  benchSchoolList(): Promise<BenchSchoolInfo[]>
+  benchSchoolToggle(name: string, enabled: boolean): Promise<boolean>
+  /** 把某所学校设为本校（同时取消原来的本校标记） */
+  benchSchoolHome(name: string): Promise<boolean>
+  /** 这所学校打算去找的账号名，来自命名套路 */
+  benchSchoolCandidates(name: string): Promise<string[]>
+  /**
+   * 按学校去搜公众号文章并入库。
+   *
+   * accounts 为空时用命名套路生成的候选；传了就用传的。
+   * 每搜一个账号之间会停顿，所以这个调用可能几十秒才返回，界面要给进度反馈。
+   */
+  benchDiscover(name: string, accounts?: string[]): Promise<BenchDiscoverResult>
+  benchProspects(school?: string): Promise<BenchProspectInfo[]>
+  /** 导入内置样本链接（随安装包带的一批已知可用链接），按学校过滤 */
+  benchSeedImport(school?: string): Promise<BenchImportResult>
+  /** 本校同类活动：给某个活动找本校的对照条目 */
+  benchHomeCompare(articleId: number): Promise<BenchArticleDetail[]>
+  /**
+   * 订阅「按学校查找」的进度。返回取消订阅的函数。
+   *
+   * 一次查找要跑几十秒，中间没有任何反馈的话，用户会以为卡死并反复点击，
+   * 那样反而把搜索配额烧得更快。
+   */
+  benchOnProgress(cb: (e: BenchProgressEvent) => void): () => void
 }
 
 // ---------- 工具 ----------
@@ -288,75 +426,16 @@ export function articleUrlKey(url: string): string | null {
 }
 
 /**
- * 上海高校名单与简称。
+ * 从公众号名猜学校。
  *
  * 判学校不能只靠「去掉『学生会』三个字」：那只能对付「复旦大学学生会」这一种写法，
  * 遇上「团聚上大」「社彩同济」「上海交大安泰EMBA」就全落空，
  * 而真实的公众号名恰恰大量使用简称——学生自己做的号很少规规矩矩写全称。
  *
- * 顺序无关，匹配时取命中别名最长的那个，避免「上海大学」被「上海」类前缀抢走。
+ * 实现放在 shared/schools.ts：界面上生成候选账号名用的是同一张表，
+ * 两处各写一份，迟早会有一处忘记更新。
  */
-const SHANGHAI_SCHOOLS: { school: string; aliases: string[] }[] = [
-  { school: '复旦大学', aliases: ['复旦大学', '复旦'] },
-  { school: '上海交通大学', aliases: ['上海交通大学', '上海交大', '交大'] },
-  { school: '同济大学', aliases: ['同济大学', '同济'] },
-  { school: '华东师范大学', aliases: ['华东师范大学', '华东师大', '华师大', '华师'] },
-  { school: '华东理工大学', aliases: ['华东理工大学', '华东理工', '华理'] },
-  { school: '上海大学', aliases: ['上海大学', '上大'] },
-  { school: '东华大学', aliases: ['东华大学', '东华'] },
-  { school: '上海外国语大学', aliases: ['上海外国语大学', '上海外国语', '上外'] },
-  { school: '上海财经大学', aliases: ['上海财经大学', '上海财经', '上财'] },
-  { school: '上海理工大学', aliases: ['上海理工大学', '上海理工', '上理'] },
-  { school: '上海师范大学', aliases: ['上海师范大学', '上海师范', '上师大'] },
-  { school: '上海海事大学', aliases: ['上海海事大学', '上海海事', '海事大学'] },
-  { school: '上海中医药大学', aliases: ['上海中医药大学', '上海中医药', '中医大'] },
-  { school: '上海对外经贸大学', aliases: ['上海对外经贸大学', '对外经贸', '上贸大'] },
-  { school: '上海工程技术大学', aliases: ['上海工程技术大学', '工程技术大学'] },
-  { school: '上海应用技术大学', aliases: ['上海应用技术大学', '应用技术大学', '上应大'] },
-  { school: '上海电力大学', aliases: ['上海电力大学', '上海电力', '上电'] },
-  { school: '上海立信会计金融学院', aliases: ['上海立信会计金融学院', '立信会计', '立信'] },
-  { school: '上海政法学院', aliases: ['上海政法学院', '上政'] },
-  { school: '上海体育大学', aliases: ['上海体育大学', '上海体育学院', '上体'] },
-  { school: '上海科技大学', aliases: ['上海科技大学', '上科大'] },
-  { school: '上海音乐学院', aliases: ['上海音乐学院', '上音'] },
-  { school: '上海戏剧学院', aliases: ['上海戏剧学院', '上戏'] },
-  { school: '上海第二工业大学', aliases: ['上海第二工业大学', '二工大'] },
-  { school: '上海电机学院', aliases: ['上海电机学院', '电机学院'] },
-  { school: '上海商学院', aliases: ['上海商学院'] },
-  { school: '上海健康医学院', aliases: ['上海健康医学院', '健康医学院'] },
-  { school: '上海海关学院', aliases: ['上海海关学院', '海关学院'] }
-]
-
-/** 中小学、择校平台混进来会污染统计——对标的是高校，不是 K12 */
-const NOT_UNIVERSITY = /中学|小学|附中|高中|幼儿园|国际学校|择校|升学|留学|考研|专升本/
-
-/**
- * 从公众号名猜学校。
- *
- * 猜错了用户能改，但不猜的话每一条都要手填学校，二十个号就是二十次重复劳动。
- * 分三步：先查上海高校简称表（准确），再退化为「去掉组织后缀」，最后不行就留空。
- * 刻意不猜外省市高校：这个库对标的是上海兄弟高校，猜成「南京师范大学」
- * 只会让筛选器里多出一堆用不上的选项。
- */
-export function guessSchool(sourceName: string): string {
-  const name = sourceName.replace(/\s+/g, '').trim()
-  if (!name) return ''
-  if (NOT_UNIVERSITY.test(name)) return ''
-
-  let best: { school: string; len: number } | null = null
-  for (const item of SHANGHAI_SCHOOLS) {
-    for (const alias of item.aliases) {
-      if (!name.includes(alias)) continue
-      if (!best || alias.length > best.len) best = { school: item.school, len: alias.length }
-    }
-  }
-  if (best) return best.school
-
-  // 兜底：名字里明确带「大学/学院」的，取到该词为止，至少能分得开不同学校
-  const generic = name.match(/^[\u4e00-\u9fa5]{2,12}?(?:大学|学院)/)
-  if (generic) return generic[0]
-  return ''
-}
+export { schoolOfAccount as guessSchool } from './schools'
 
 /**
  * 从 "2026年10月28日 08:16" / "2026-10-28 08:16" / "2026/10/28" 中抽日期时间。

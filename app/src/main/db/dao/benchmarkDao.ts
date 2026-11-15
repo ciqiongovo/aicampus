@@ -20,6 +20,9 @@ import type {
   BenchBriefItem,
   BenchMigrationFit,
   BenchNoticeKind,
+  BenchProspectInfo,
+  BenchProspectStatus,
+  BenchSchoolInfo,
   BenchSourceCategory,
   BenchSourceInfo,
   BenchStats
@@ -109,6 +112,7 @@ interface ArticleRow {
   is_second_notice: number
   notice_kind: string
   migration_fit: string
+  is_home: number
   fetched_at: string | null
   error: string
 }
@@ -121,10 +125,12 @@ const ARTICLE_SELECT = `
          COALESCE(act.is_second_notice, 0) AS is_second_notice,
          COALESCE(act.notice_kind, '') AS notice_kind,
          COALESCE(act.migration_fit, '') AS migration_fit,
+         COALESCE(sch.is_home, 0) AS is_home,
          a.fetched_at, a.error
     FROM bench_article a
     LEFT JOIN bench_source s ON s.id = a.source_id
-    LEFT JOIN bench_activity act ON act.article_id = a.id`
+    LEFT JOIN bench_activity act ON act.article_id = a.id
+    LEFT JOIN bench_school sch ON sch.name = s.school`
 
 function toArticleInfo(r: ArticleRow): BenchArticleInfo {
   return {
@@ -142,6 +148,7 @@ function toArticleInfo(r: ArticleRow): BenchArticleInfo {
     isSecondNotice: r.is_second_notice === 1,
     noticeKind: r.notice_kind as BenchNoticeKind,
     migrationFit: r.migration_fit as BenchMigrationFit,
+    isHome: r.is_home === 1,
     fetchedAt: r.fetched_at,
     error: r.error
   }
@@ -150,15 +157,15 @@ function toArticleInfo(r: ArticleRow): BenchArticleInfo {
 /** 入队；返回 true 表示新入队，false 表示已在库里 */
 export function enqueueArticle(
   db: DatabaseSync,
-  input: { urlKey: string; url: string; sourceId: number | null }
+  input: { urlKey: string; url: string; sourceId: number | null; hintSchool?: string }
 ): boolean {
   const info = db
     .prepare(
-      `INSERT INTO bench_article (source_id, url_key, url)
-       VALUES (?, ?, ?)
+      `INSERT INTO bench_article (source_id, url_key, url, hint_school)
+       VALUES (?, ?, ?, ?)
        ON CONFLICT(url_key) DO NOTHING`
     )
-    .run(input.sourceId, input.urlKey, input.url)
+    .run(input.sourceId, input.urlKey, input.url, input.hintSchool ?? '')
   return info.changes > 0
 }
 
@@ -236,10 +243,13 @@ export function resetUnreachable(db: DatabaseSync, holdMs = 30 * 60 * 1000): num
 export function pendingArticles(
   db: DatabaseSync,
   limit: number
-): { id: number; url: string }[] {
-  return db
-    .prepare("SELECT id, url FROM bench_article WHERE status = 'new' ORDER BY id LIMIT ?")
-    .all(limit) as { id: number; url: string }[]
+): { id: number; url: string; hintSchool: string }[] {
+  const rows = db
+    .prepare(
+      "SELECT id, url, COALESCE(hint_school, '') AS hint_school FROM bench_article WHERE status = 'new' ORDER BY id LIMIT ?"
+    )
+    .all(limit) as unknown as { id: number; url: string; hint_school: string }[]
+  return rows.map((r) => ({ id: r.id, url: r.url, hintSchool: r.hint_school }))
 }
 
 export function markFetched(
@@ -271,7 +281,12 @@ export function markFetched(
  * 才第一次知道这是谁的推文。这时顺手把源补上，用户只需要回来填「学校」一格，
  * 不用先把二十个号的名字手工敲一遍。
  */
-export function ensureSourceByName(db: DatabaseSync, name: string): number | null {
+export function ensureSourceByName(
+  db: DatabaseSync,
+  name: string,
+  /** 按学校发现时留下的线索：猜不出学校时用它兜底，总比留空强 */
+  hintSchool = ''
+): number | null {
   const clean = name.trim()
   if (!clean) return null
   const existing = db.prepare('SELECT id FROM bench_source WHERE name = ? LIMIT 1').get(clean) as
@@ -282,7 +297,7 @@ export function ensureSourceByName(db: DatabaseSync, name: string): number | nul
   // 但一条都不猜的话，采完二十个号要手填二十次学校
   const info = db
     .prepare("INSERT INTO bench_source (name, school, category) VALUES (?, ?, 'student_union')")
-    .run(clean, guessSchool(clean))
+    .run(clean, guessSchool(clean) || schoolOfKnownAccount(db, clean) || hintSchool)
   return Number(info.lastInsertRowid)
 }
 
@@ -353,8 +368,12 @@ export interface ActivityInput {
   audience: string
   orgForm: string
   joinMethod: string
+  coOrganizer: string
+  duration: string
+  scale: string
   promoChannels: string[]
   agenda: string[]
+  highlights: string[]
   isSecondNotice: boolean
   noticeKind: BenchNoticeKind
   migrationFit: BenchMigrationFit
@@ -368,32 +387,41 @@ export function upsertActivity(db: DatabaseSync, articleId: number, input: Activ
   db.prepare(
     `INSERT INTO bench_activity
        (article_id, kind, organizer, start_at, end_at, week_no, location, audience, org_form,
-        join_method, promo_channels, agenda, is_second_notice, notice_kind,
-        migration_fit, migration_note, confidence, model, extracted_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        join_method, co_organizer, duration, scale, promo_channels, agenda, highlights,
+        is_second_notice, notice_kind, migration_fit, migration_note, confidence, model, extracted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(article_id) DO UPDATE SET
        kind = excluded.kind, organizer = excluded.organizer,
        start_at = excluded.start_at, end_at = excluded.end_at, week_no = excluded.week_no,
        location = excluded.location, audience = excluded.audience,
        org_form = excluded.org_form, join_method = excluded.join_method,
+       co_organizer = excluded.co_organizer, duration = excluded.duration,
+       scale = excluded.scale,
        promo_channels = excluded.promo_channels, agenda = excluded.agenda,
+       highlights = excluded.highlights,
        is_second_notice = excluded.is_second_notice, notice_kind = excluded.notice_kind,
        migration_fit = excluded.migration_fit, migration_note = excluded.migration_note,
        confidence = excluded.confidence, model = excluded.model,
        extracted_at = excluded.extracted_at`
   ).run(
     articleId,
-    input.kind,
-    input.organizer,
-    input.startAt,
-    input.endAt,
-    input.weekNo,
-    input.location,
-    input.audience,
-    input.orgForm,
-    input.joinMethod,
-    JSON.stringify(input.promoChannels),
-    JSON.stringify(input.agenda),
+    input.kind ?? '',
+    input.organizer ?? '',
+    input.startAt ?? null,
+    input.endAt ?? null,
+    input.weekNo ?? null,
+    input.location ?? '',
+    input.audience ?? '',
+    input.orgForm ?? '',
+    input.joinMethod ?? '',
+    // 新加的字段一律兜底：调用方少传一个，node:sqlite 会把 undefined 当类型错误抛出来，
+    // 整个抽取流程就断在这一篇上。缺字段应该写成空，不该让一篇坏掉一整批。
+    input.coOrganizer ?? '',
+    input.duration ?? '',
+    input.scale ?? '',
+    JSON.stringify(input.promoChannels ?? []),
+    JSON.stringify(input.agenda ?? []),
+    JSON.stringify(input.highlights ?? []),
     input.isSecondNotice ? 1 : 0,
     input.noticeKind,
     input.migrationFit,
@@ -412,7 +440,8 @@ export function getActivity(db: DatabaseSync, articleId: number): BenchActivityI
   const row = db
     .prepare(
       `SELECT article_id, kind, organizer, start_at, end_at, week_no, location, audience, org_form,
-              join_method, promo_channels, agenda, is_second_notice, notice_kind,
+              join_method, co_organizer, duration, scale, promo_channels, agenda, highlights,
+              is_second_notice, notice_kind,
               migration_fit, migration_note, confidence, model, extracted_at
          FROM bench_activity WHERE article_id = ?`
     )
@@ -429,8 +458,12 @@ export function getActivity(db: DatabaseSync, articleId: number): BenchActivityI
     audience: String(row.audience ?? ''),
     orgForm: String(row.org_form ?? ''),
     joinMethod: String(row.join_method ?? ''),
+    coOrganizer: String(row.co_organizer ?? ''),
+    duration: String(row.duration ?? ''),
+    scale: String(row.scale ?? ''),
     promoChannels: parseJsonArray(row.promo_channels),
     agenda: parseJsonArray(row.agenda),
+    highlights: parseJsonArray(row.highlights),
     isSecondNotice: Number(row.is_second_notice) === 1,
     noticeKind: String(row.notice_kind ?? '') as BenchNoticeKind,
     migrationFit: String(row.migration_fit ?? '') as BenchMigrationFit,
@@ -520,10 +553,14 @@ export function briefRows(db: DatabaseSync, filter: BenchArticleFilter): BenchBr
       `SELECT a.id, COALESCE(s.school, '') AS school, COALESCE(s.name, '') AS source_name,
               a.title, a.url, a.published_at,
               act.kind, act.week_no, act.start_at, act.location, act.org_form, act.audience,
-              act.agenda, act.promo_channels, act.migration_fit, act.migration_note, act.confidence
+              act.co_organizer, act.duration, act.scale,
+              act.agenda, act.highlights, act.promo_channels,
+              act.migration_fit, act.migration_note, act.confidence,
+              COALESCE(sch.is_home, 0) AS is_home
          FROM bench_article a
          JOIN bench_source s ON s.id = a.source_id
          JOIN bench_activity act ON act.article_id = a.id
+         LEFT JOIN bench_school sch ON sch.name = s.school
         WHERE ${where.join(' AND ')}
         ORDER BY school, a.published_at DESC, a.id DESC
         LIMIT ?`
@@ -543,10 +580,264 @@ export function briefRows(db: DatabaseSync, filter: BenchArticleFilter): BenchBr
     location: String(r.location ?? ''),
     orgForm: String(r.org_form ?? ''),
     audience: String(r.audience ?? ''),
+    coOrganizer: String(r.co_organizer ?? ''),
+    duration: String(r.duration ?? ''),
+    scale: String(r.scale ?? ''),
     agenda: parseJsonArray(r.agenda),
+    highlights: parseJsonArray(r.highlights),
     promoChannels: parseJsonArray(r.promo_channels),
     migrationFit: String(r.migration_fit ?? '') as BenchMigrationFit,
     migrationNote: String(r.migration_note ?? ''),
+    isHome: Number(r.is_home) === 1,
     confidence: Number(r.confidence ?? 0)
   }))
+}
+
+// ---------------- 学校与候选账号（v31） ----------------
+
+interface SchoolRow {
+  id: number
+  name: string
+  short_name: string
+  known_accounts: string
+  is_home: number
+  enabled: number
+  source_count: number
+  article_count: number
+  activity_count: number
+}
+
+/**
+ * 把内置名单写进表，缺哪所补哪所。
+ *
+ * 用 INSERT ... ON CONFLICT DO NOTHING 而不是 REPLACE：用户可能改过本校、
+ * 关掉了某几所，升级时不该把他改的东西盖回去。新版本新增的学校才插进去。
+ */
+export function seedSchools(
+  db: DatabaseSync,
+  schools: { name: string; shortName: string; aliases: string[] }[],
+  homeName: string,
+  /** 已查证的公众号名，按校名索引。查证过的不再用套路去猜 */
+  known: Record<string, string[]> = {}
+): number {
+  const insert = db.prepare(
+    `INSERT INTO bench_school (name, short_name, aliases, is_home, sort_order, known_accounts)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(name) DO NOTHING`
+  )
+  // 只在「还没有记录」时补已知账号：用户删掉过的号不该被升级又塞回来
+  const fillKnown = db.prepare(
+    `UPDATE bench_school SET known_accounts = ?
+      WHERE name = ? AND (known_accounts = '[]' OR known_accounts = '')`
+  )
+  let added = 0
+  for (const [index, s] of schools.entries()) {
+    const accounts = known[s.name] ?? []
+    const info = insert.run(
+      s.name,
+      s.shortName,
+      JSON.stringify(s.aliases),
+      s.name === homeName ? 1 : 0,
+      index,
+      JSON.stringify(accounts)
+    )
+    added += Number(info.changes)
+    if (accounts.length) fillKnown.run(JSON.stringify(accounts), s.name)
+  }
+  // 老库里可能一所本校都没有（首次升级），补一个默认本校，界面才有基准行
+  const home = db.prepare('SELECT COUNT(*) AS n FROM bench_school WHERE is_home = 1').get() as {
+    n: number
+  }
+  if (home.n === 0) {
+    db.prepare('UPDATE bench_school SET is_home = 1 WHERE name = ?').run(homeName)
+  }
+  return added
+}
+
+export function listSchoolInfos(
+  db: DatabaseSync,
+  candidatesOf: (name: string, known: string[]) => string[]
+): BenchSchoolInfo[] {
+  const rows = db
+    .prepare(
+      `SELECT sch.id, sch.name, sch.short_name, COALESCE(sch.known_accounts, '[]') AS known_accounts,
+              sch.is_home, sch.enabled,
+              (SELECT COUNT(*) FROM bench_source s WHERE s.school = sch.name) AS source_count,
+              (SELECT COUNT(*) FROM bench_article a JOIN bench_source s2 ON s2.id = a.source_id
+                WHERE s2.school = sch.name) AS article_count,
+              (SELECT COUNT(*) FROM bench_activity act
+                 JOIN bench_article a2 ON a2.id = act.article_id
+                 JOIN bench_source s3 ON s3.id = a2.source_id
+                WHERE s3.school = sch.name) AS activity_count
+         FROM bench_school sch
+        ORDER BY sch.is_home DESC, sch.sort_order, sch.id`
+    )
+    .all() as unknown as SchoolRow[]
+  return rows.map((r) => {
+    const known = parseJsonArray(r.known_accounts)
+    return {
+      id: r.id,
+      name: r.name,
+      shortName: r.short_name,
+      isHome: r.is_home === 1,
+      enabled: r.enabled === 1,
+      articleCount: r.article_count,
+      activityCount: r.activity_count,
+      sourceCount: r.source_count,
+      candidates: candidatesOf(r.name, known),
+      knownAccounts: known
+    }
+  })
+}
+
+/**
+ * 反查：这个公众号是不是哪所学校的已知账号。
+ *
+ * 「书院的天空」「团聚上大」「社彩同济」这类花名里根本没有校名，
+ * 光看名字永远猜不出归属。但只要这个号被记进过某校的已知清单，
+ * 归属就是确定的，比任何猜测都可靠。
+ */
+export function schoolOfKnownAccount(db: DatabaseSync, accountName: string): string {
+  const clean = accountName.trim()
+  if (!clean) return ''
+  const rows = db
+    .prepare("SELECT name, COALESCE(known_accounts, '[]') AS known FROM bench_school")
+    .all() as unknown as { name: string; known: string }[]
+  for (const row of rows) {
+    if (parseJsonArray(row.known).includes(clean)) return row.name
+  }
+  return ''
+}
+
+/** 某所学校已查证的公众号名 */
+export function knownAccountsOf(db: DatabaseSync, name: string): string[] {
+  const row = db
+    .prepare("SELECT COALESCE(known_accounts, '[]') AS known FROM bench_school WHERE name = ?")
+    .get(name) as { known: string } | undefined
+  return parseJsonArray(row?.known)
+}
+
+/** 把一个号记为该学校「查证存在」的号，下次直接用它，不再搜名字 */
+export function rememberAccount(db: DatabaseSync, school: string, accountName: string): void {
+  const current = knownAccountsOf(db, school)
+  const clean = accountName.trim()
+  if (!clean || current.includes(clean)) return
+  db.prepare('UPDATE bench_school SET known_accounts = ? WHERE name = ?').run(
+    JSON.stringify([...current, clean]),
+    school
+  )
+}
+
+export function setSchoolEnabled(db: DatabaseSync, name: string, enabled: boolean): void {
+  db.prepare('UPDATE bench_school SET enabled = ? WHERE name = ?').run(enabled ? 1 : 0, name)
+}
+
+/** 本校只能有一个：先全部清零再置一，避免出现两个基准行 */
+export function setHomeSchool(db: DatabaseSync, name: string): void {
+  db.prepare('UPDATE bench_school SET is_home = 0').run()
+  db.prepare('UPDATE bench_school SET is_home = 1 WHERE name = ?').run(name)
+}
+
+export function homeSchoolName(db: DatabaseSync): string {
+  const row = db.prepare('SELECT name FROM bench_school WHERE is_home = 1 LIMIT 1').get() as
+    | { name: string }
+    | undefined
+  return row?.name ?? ''
+}
+
+/** 候选账号入库；已存在的不动，保留上次试过的结果 */
+export function upsertProspects(
+  db: DatabaseSync,
+  school: string,
+  accounts: { name: string; category: BenchSourceCategory }[]
+): void {
+  const stmt = db.prepare(
+    `INSERT INTO bench_prospect (school, account_name, category)
+     VALUES (?, ?, ?)
+     ON CONFLICT(school, account_name) DO NOTHING`
+  )
+  for (const a of accounts) stmt.run(school, a.name, a.category)
+}
+
+interface ProspectRow {
+  id: number
+  school: string
+  account_name: string
+  category: string
+  status: string
+  hit_count: number
+  last_tried_at: string | null
+  note: string
+}
+
+export function listProspects(db: DatabaseSync, school?: string): BenchProspectInfo[] {
+  const rows = (
+    school
+      ? db
+          .prepare(
+            `SELECT * FROM bench_prospect WHERE school = ?
+              ORDER BY status = 'found' DESC, hit_count DESC, id`
+          )
+          .all(school)
+      : db
+          .prepare(
+            `SELECT * FROM bench_prospect
+              ORDER BY school, status = 'found' DESC, hit_count DESC, id`
+          )
+          .all()
+  ) as unknown as ProspectRow[]
+  return rows.map((r) => ({
+    id: r.id,
+    school: r.school,
+    accountName: r.account_name,
+    category: r.category as BenchSourceCategory,
+    status: r.status as BenchProspectStatus,
+    hitCount: r.hit_count,
+    lastTriedAt: r.last_tried_at,
+    note: r.note
+  }))
+}
+
+export function markProspect(
+  db: DatabaseSync,
+  school: string,
+  accountName: string,
+  input: { status: BenchProspectStatus; hitCount: number; note?: string }
+): void {
+  db.prepare(
+    `UPDATE bench_prospect
+        SET status = ?, hit_count = ?, last_tried_at = ?, note = ?
+      WHERE school = ? AND account_name = ?`
+  ).run(
+    input.status,
+    input.hitCount,
+    nowLocal(),
+    (input.note ?? '').slice(0, 200),
+    school,
+    accountName
+  )
+}
+
+/**
+ * 本校同类活动。
+ *
+ * 举出一个外校活动的做法之后，人紧接着会问「那我们呢」，这一条就是回答。
+ * 只按类型匹配，不按时间：本校一年可能只办一次，卡时间窗口就永远配不上。
+ */
+export function homePeerArticleIds(db: DatabaseSync, articleId: number, limit = 3): number[] {
+  const rows = db
+    .prepare(
+      `SELECT a.id
+         FROM bench_article a
+         JOIN bench_source s ON s.id = a.source_id
+         JOIN bench_school sch ON sch.name = s.school AND sch.is_home = 1
+         JOIN bench_activity act ON act.article_id = a.id
+        WHERE a.id <> ?
+          AND act.kind <> ''
+          AND act.kind = (SELECT kind FROM bench_activity WHERE article_id = ?)
+        ORDER BY a.published_at DESC, a.id DESC
+        LIMIT ?`
+    )
+    .all(articleId, articleId, limit) as unknown as { id: number }[]
+  return rows.map((r) => r.id)
 }

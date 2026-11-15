@@ -26,8 +26,12 @@ export interface ExtractedActivity {
   audience: string
   orgForm: string
   joinMethod: string
+  coOrganizer: string
+  duration: string
+  scale: string
   promoChannels: string[]
   agenda: string[]
+  highlights: string[]
   isSecondNotice: boolean
   noticeKind: BenchNoticeKind
   migrationFit: BenchMigrationFit
@@ -61,8 +65,12 @@ export function buildSystemPrompt(ourContext: string): string {
   "audience": "面向对象，如 全校学生、本院学生、2026级新生、毕业生；没写就空字符串",
   "org_form": "组织方式，挑最贴切的短语组合，如 线下独办、线上线下结合、与学院合办、与社团合办、需报名筛选、自由参加",
   "join_method": "参与方式，如 线上报名、抢票、扫码进群、无需报名、直接到场；没写就空字符串",
+  "co_organizer": "协办、承办、支持单位，原文怎么写就怎么填；没写就空字符串",
+  "duration": "活动时长或起止范围，如 19:00–21:30、为期两天、持续一周；原文没写就空字符串",
+  "scale": "规模，如 预计 800 人、覆盖 30 个班级、20 支队伍；只有原文写了数字才填，没写就空字符串",
   "promo_channels": ["文中提到的宣传或参与形式，如 直播、抽奖、海报、短视频、集赞、线上问卷；没有就给空数组"],
-  "agenda": ["活动议程或特色环节，逐个列出，如 开场致辞、颁奖、抽奖、节目表演、分组讨论、合影；原文没写就空数组"],
+  "agenda": ["活动流程，按先后顺序逐个列出，如 开场致辞、颁奖、节目表演、合影；原文没写就空数组"],
+  "highlights": ["这个活动里最不一样、最值得别人学的几处，如 用校园地标做打卡点、毕业生手写寄语墙、跨院系混编组队；原文没写就空数组"],
   "is_second_notice": true/false,
   "notice_kind": "is_second_notice 为 true 时填：reschedule（改期）/ venue_change（场地变更）/ cancel（取消）/ other；否则空字符串",
   "migration_fit": "结合上面本校情况，判断这件事搬到本校做不做得到：easy（现成条件就能办）/ possible（要协调场地或经费但可行）/ hard（需要大额经费或跨校资源）/ unsuitable（学制、规模或学科特点决定搬不过来）；判断不了就填空字符串",
@@ -75,7 +83,9 @@ export function buildSystemPrompt(ourContext: string): string {
 2. 招生简章、成绩公示、人事任免、理论学习、纯图片推送不算活动，is_activity 填 false。
 3. 二次通知指这件事之前已经通知过、这次是变更或补充（改期、换场地、取消、加场）。首次通知不算。
 4. 一篇文章里有多个活动时，只抽最主要那一个。
-5. agenda 只抽原文真正写出来的环节。原文没说议程就留空数组，不要按「一般晚会都有开场致辞」补。`
+5. agenda 只抽原文真正写出来的流程。原文没说议程就留空数组，不要按「一般晚会都有开场致辞」补。
+6. highlights 与 agenda 不重复：agenda 是流程，highlights 是这套流程里别人没有的那几处。找不到就留空数组，不要拿「氛围热烈」「反响良好」这类宣传语凑数。
+7. scale 只写原文给出的数量。写「数百人」「千余人」就照抄，不要换算成一个具体数字。`
 }
 
 /** 正文过长时截取首尾：活动要素通常出现在开头，变更说明常在文末 */
@@ -156,6 +166,7 @@ export async function extractActivity(
   const isSecondNotice = data.is_second_notice === true
   const channels = asStringArray(data.promo_channels, 8)
   const agenda = asStringArray(data.agenda, 12)
+  const highlights = asStringArray(data.highlights, 8)
   const rawConfidence = typeof data.confidence === 'number' ? data.confidence : 0
 
   return {
@@ -169,8 +180,12 @@ export async function extractActivity(
     audience: isActivity ? asString(data.audience) : '',
     orgForm: isActivity ? asString(data.org_form) : '',
     joinMethod: isActivity ? asString(data.join_method) : '',
+    coOrganizer: isActivity ? asString(data.co_organizer) : '',
+    duration: isActivity ? asString(data.duration) : '',
+    scale: isActivity ? asString(data.scale) : '',
     promoChannels: isActivity ? channels : [],
     agenda: isActivity ? agenda : [],
+    highlights: isActivity ? highlights : [],
     isSecondNotice: isActivity && isSecondNotice,
     noticeKind: asNoticeKind(data.notice_kind, isActivity && isSecondNotice),
     migrationFit: isActivity ? asMigrationFit(data.migration_fit) : '',

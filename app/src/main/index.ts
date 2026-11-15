@@ -12,6 +12,7 @@ import { createTray } from './tray'
 import { createConfirmedExternalOpener } from './services/externalLinkSafety'
 import { registerExternalOpener } from './services/externalOpen'
 import { ZHIHU_PARTITION } from '../shared/zhihu'
+import { APP_ID, APP_NAME, prepareUserData } from './brand'
 import type { Tray } from 'electron'
 
 const isDev = !app.isPackaged
@@ -19,7 +20,12 @@ let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
 
-// 启动留痕：写入 %TEMP%\infoagent-startup.log，双击无反应时可据此定位停在哪一步
+// 必须早于任何 getPath('userData')：把目录钉到 ZhiShu，并把旧 InfoAgent 的库搬过来。
+// 放在模块顶层而不是 whenReady 里，是因为启动日志本身就要往 userData 写，
+// 晚一步就会在旧目录留下一份空日志，看起来像又新建了一个用户。
+const userData = prepareUserData()
+
+// 启动留痕：写入 <用户数据目录>\startup.log，双击无反应时可据此定位停在哪一步
 const startedAt = Date.now()
 let logTargets: string[] | null = null
 
@@ -32,7 +38,7 @@ function resolveLogTargets(): string[] {
     // userData 不可用（极早期）时跳过
   }
   try {
-    targets.push(join(tmpdir(), 'infoagent-startup.log'))
+    targets.push(join(tmpdir(), 'zhishu-startup.log'))
   } catch {
     // tmpdir 不可用时跳过
   }
@@ -70,14 +76,14 @@ function startupFail(title: string, error: unknown): void {
 }
 
 process.on('uncaughtException', (error) => {
-  startupFail('InfoAgent 运行出错', error)
+  startupFail(`${APP_NAME} 运行出错`, error)
 })
 
 process.on('unhandledRejection', (reason) => {
   const detail = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)
   startupLog(`UNHANDLED_REJECTION ${detail}`)
   // 窗口还没出来就失败 = 用户只会看到「双击没反应」，这时必须告诉他是怎么回事
-  if (!windowShown) startupFail('InfoAgent 启动失败', reason)
+  if (!windowShown) startupFail(`${APP_NAME} 启动失败`, reason)
 })
 
 startupLog(
@@ -155,7 +161,7 @@ if (!gotLock) {
       // 与面板底色一致，Windows 合成器在首帧前露出的窗口底色不再是一块纯白。
       backgroundColor: '#f7f6f3',
       autoHideMenuBar: true,
-      title: 'InfoAgent',
+      title: APP_NAME,
       icon: app.isPackaged
         ? join(process.resourcesPath, 'resources/icon.ico')
         : join(app.getAppPath(), 'resources/icon.ico'),
@@ -214,10 +220,11 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     startupLog('app ready')
-    app.setAppUserModelId('com.infoagent.desktop')
-    const userData = app.getPath('userData')
-    const dbPath = join(userData, 'infoagent.db')
-    startupLog(`打开数据库 ${dbPath}`)
+    app.setAppUserModelId(APP_ID)
+    const dbPath = userData.dbPath
+    startupLog(
+      `打开数据库 ${dbPath}${userData.migrated ? '（已从旧版 InfoAgent 目录搬入）' : ''}`
+    )
     const db = openDatabase(dbPath)
     startupLog('数据库就绪，迁移账号密文')
     try {

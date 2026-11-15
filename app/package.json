@@ -1,11 +1,11 @@
 {
-  "name": "infoagent",
-  "version": "0.4.0",
-  "description": "InfoAgent — 以邮件为入口的个人信息整理与行动辅助系统",
+  "name": "zhishu",
+  "version": "1.0.0",
+  "description": "知枢 — 高校公众号活动对标与决策支持",
   "main": "./out/main/index.js",
   "private": true,
   "packageManager": "pnpm@10.15.0",
-  "author": "InfoAgent Team",
+  "author": "知枢",
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
@@ -25,7 +25,7 @@
     "test:counterrec": "tsc -p tsconfig.test.json && node tests/counterRec.test.cjs",
     "test:zhihu": "tsc -p tsconfig.test.json && node tests/zhihu.test.cjs",
     "dist:portable": "electron-vite build && electron-builder --win portable",
-    "publish:exe": "electron-vite build && electron-builder --win portable && cmd /c copy /y release\\InfoAgent-%npm_package_version%-portable.exe InfoAgent.exe",
+    "publish:exe": "electron-vite build && electron-builder --win portable",
     "dist": "electron-vite build && electron-builder --win",
     "test:workspace": "tsc -p tsconfig.test.json && node --test tests/workspace.test.cjs tests/workspace-security.test.cjs tests/rule-engine.test.cjs tests/agent-model.test.cjs"
   },
@@ -50,8 +50,8 @@
     "vite": "^6.0.0"
   },
   "build": {
-    "appId": "com.infoagent.desktop",
-    "productName": "InfoAgent",
+    "appId": "com.zhishu.desktop",
+    "productName": "知枢",
     "directories": {
       "output": "release",
       "buildResources": "resources"
@@ -68,6 +68,7 @@
     ],
     "asar": true,
     "npmRebuild": true,
+    "electronDist": "node_modules/electron/dist",
     "win": {
       "target": [
         {
@@ -91,12 +92,12 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "InfoAgent",
+      "shortcutName": "知枢",
       "deleteAppDataOnUninstall": false,
-      "artifactName": "InfoAgent-${version}-setup.${ext}"
+      "artifactName": "ZhiShu-${version}-setup.${ext}"
     },
     "portable": {
-      "artifactName": "InfoAgent-${version}-portable.${ext}"
+      "artifactName": "ZhiShu-${version}-portable.${ext}"
     }
   }
 }

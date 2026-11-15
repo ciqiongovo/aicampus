@@ -18,6 +18,8 @@ dist/
 release/
 out/
 build/
+out-dist/
+.tmp/
 __pycache__/
 *.pyc
 .venv/
@@ -36,6 +38,7 @@ output/bench/*.html
 output/bench/*.png
 output/bench/tmp*.txt
 output/bench/one.txt
+output/bench/sk.txt
 output/bench/baidu.html
 output/bench/links.json
 output/bench/search-links.json

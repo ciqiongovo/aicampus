@@ -66,7 +66,7 @@ export class ReminderScheduler {
             record(r.id, '系统不支持桌面通知')
             continue
           }
-          const notification = new Notification({ title: 'InfoAgent 提醒', body })
+          const notification = new Notification({ title: '知枢 · 提醒', body })
           let settled = false
           let timeout: NodeJS.Timeout | null = null
           const cleanup = (): void => {

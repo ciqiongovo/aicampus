@@ -31,7 +31,9 @@ body {
 }
 .app-logo-icon { width: 20px; height: 20px; flex: 0 0 20px; object-fit: contain; filter: grayscale(1); opacity: .9; }
 .app-logo-text { min-width: 0; }
-.app-logo-title { font-size: 11px; font-weight: 600; letter-spacing: .22em; line-height: 1.35; color: var(--text); }
+/* 中文品牌名不能沿用英文那套 11px + .22em 字距：中文在这个字号下挤成一团，
+   字距拉开又显得稀疏。汉字要靠字号和字重立住。 */
+.app-logo-title { font-size: 16px; font-weight: 700; letter-spacing: .04em; line-height: 1.2; color: var(--text); }
 .app-logo-sub { font-size: 10px; color: var(--text-3); letter-spacing: .06em; line-height: 1.4; white-space: nowrap; }
 
 /* 导航显隐/固定：降级为纯文字图标 */

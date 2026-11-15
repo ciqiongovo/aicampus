@@ -15,14 +15,25 @@ import type {
   BenchArticleFilter,
   BenchArticleInfo,
   BenchBrief,
+  BenchDiscoverResult,
   BenchExtractResult,
   BenchFetchResult,
   BenchImportResult,
+  BenchProspectInfo,
+  BenchSchoolInfo,
   BenchSourceCategory,
   BenchSourceInfo,
   BenchStats
 } from '../../../shared/benchmark'
-import { articleUrlKey } from '../../../shared/benchmark'
+import { articleUrlKey, guessSchool } from '../../../shared/benchmark'
+import {
+  HOME_SCHOOL,
+  KNOWN_ACCOUNTS,
+  SHANGHAI_SCHOOLS,
+  candidateAccounts,
+  findSchool,
+  mergeAccounts
+} from '../../../shared/schools'
 import type { AiConfigInput } from '../../../shared/types'
 import type { SettingsStore } from '../../store/settings'
 import * as dao from '../../db/dao/benchmarkDao'
@@ -31,6 +42,9 @@ import { extractByRules } from './rule-extract'
 import { fetchArticle } from './fetcher'
 import { VERIFY_BLOCKED } from './page'
 import { extractActivity } from './extractor'
+import { discoverSchool, DEFAULT_ACCOUNT_LIMIT } from './discover'
+import type { DiscoverProgress } from './discover'
+import { readSeeds } from './seeds'
 
 /** 抓取一篇的最长等待：超过就当这次没拿到，下次重试 */
 const FETCH_TIMEOUT_MS = 15000
@@ -51,7 +65,10 @@ export class BenchmarkService {
   constructor(
     private readonly db: DatabaseSync,
     private readonly settings: SettingsStore
-  ) {}
+  ) {
+    // 内置名单只在缺项时补，不会覆盖用户改过的本校或开关
+    dao.seedSchools(this.db, SHANGHAI_SCHOOLS, HOME_SCHOOL, KNOWN_ACCOUNTS)
+  }
 
   // ---------------- 源 ----------------
 
@@ -151,6 +168,94 @@ export class BenchmarkService {
     return parts.length ? parts.join(' · ') : '全部活动'
   }
 
+  // ---------------- 学校与发现 ----------------
+
+  /**
+   * 可选学校清单。
+   *
+   * candidates 给的是「打算怎么搜」，不是「已知有哪些号」——界面上必须分开说。
+   */
+  schoolList(): BenchSchoolInfo[] {
+    return dao.listSchoolInfos(this.db, (name, known) =>
+      mergeAccounts(known, candidateAccounts(findSchool(name)))
+    )
+  }
+
+  toggleSchool(name: string, enabled: boolean): void {
+    dao.setSchoolEnabled(this.db, name, enabled)
+  }
+
+  setHomeSchool(name: string): void {
+    if (!name.trim()) throw new Error('学校名不能为空')
+    dao.setHomeSchool(this.db, name)
+  }
+
+  candidates(name: string): string[] {
+    return mergeAccounts(dao.knownAccountsOf(this.db, name), candidateAccounts(findSchool(name)))
+  }
+
+  /**
+   * 按学校去搜文章。
+   *
+   * 这个方法会跑几十秒：每个账号之间要停三五秒，不然会立刻触发限流。
+   * 所以它接受一个进度回调，界面据此显示「第几个、在搜谁」，
+   * 而不是让人对着一个转圈的按钮猜是不是卡死了。
+   */
+  async discover(
+    name: string,
+    accounts?: string[],
+    onProgress?: (p: DiscoverProgress) => void
+  ): Promise<BenchDiscoverResult> {
+    return discoverSchool(this.db, {
+      school: name,
+      accounts,
+      limit: accounts?.length ?? DEFAULT_ACCOUNT_LIMIT,
+      onProgress
+    })
+  }
+
+  prospects(school?: string): BenchProspectInfo[] {
+    return dao.listProspects(this.db, school)
+  }
+
+  /**
+   * 导入随安装包带来的样本链接。
+   *
+   * 为什么要有这个：新装一份软件，库是空的。要想看到东西，先得自己去搜链接，
+   * 而搜索有配额。带一批已知能用的链接，装上就能看见「兄弟高校到底在干什么」，
+   * 这件事决定了别人会不会继续用下去。
+   */
+  seedImport(school?: string): BenchImportResult {
+    const seeds = readSeeds().filter((s) => !school || s.school === school)
+    let accepted = 0
+    let duplicated = 0
+    let invalid = 0
+    for (const seed of seeds) {
+      const key = articleUrlKey(seed.url)
+      if (!key) {
+        invalid += 1
+        continue
+      }
+      const added = dao.enqueueArticle(this.db, {
+        urlKey: key,
+        url: seed.url,
+        sourceId: null,
+        hintSchool: seed.school
+      })
+      if (added) accepted += 1
+      else duplicated += 1
+    }
+    return { accepted, duplicated, invalid }
+  }
+
+  /** 本校同类活动：给一个外校做法，配几条本校的做法，才能比 */
+  homeCompare(articleId: number): BenchArticleDetail[] {
+    return dao
+      .homePeerArticleIds(this.db, articleId)
+      .map((id) => this.article(id))
+      .filter((x): x is BenchArticleDetail => !!x)
+  }
+
   // ---------------- 抓取 ----------------
 
   async runFetch(limit = 20): Promise<BenchFetchResult> {
@@ -164,7 +269,8 @@ export class BenchmarkService {
         if (i > 0) await sleep(GAP_MIN_MS + Math.random() * (GAP_MAX_MS - GAP_MIN_MS))
         const outcome = await fetchArticle(item.url, { timeoutMs: FETCH_TIMEOUT_MS })
         if (outcome.status === 'ok') {
-          const sourceId = dao.ensureSourceByName(this.db, outcome.author) ?? undefined
+          const sourceId =
+            dao.ensureSourceByName(this.db, outcome.author, item.hintSchool) ?? undefined
           dao.markFetched(this.db, item.id, {
             title: outcome.title,
             author: outcome.author,
@@ -172,6 +278,15 @@ export class BenchmarkService {
             body: outcome.body,
             sourceId
           })
+          // 抓到真名了，记下来。下次找这所学校就不用再赌名字对不对。
+          // 但要先验证这个号确实属于这所学校：从「上海科技大学」的搜索里，
+          // 一样能搜出「北京科技大学」的文章，把后者记成上科大的号就错了。
+          if (outcome.author && item.hintSchool) {
+            const belonging = guessSchool(outcome.author)
+            if (!belonging || belonging === item.hintSchool) {
+              dao.rememberAccount(this.db, item.hintSchool, outcome.author)
+            }
+          }
           if (outcome.imageOnly) {
             dao.markSkipped(this.db, item.id, outcome.error)
             result.imageOnly += 1
@@ -248,8 +363,12 @@ export class BenchmarkService {
             audience: extracted.audience,
             orgForm: extracted.orgForm,
             joinMethod: extracted.joinMethod,
+            coOrganizer: extracted.coOrganizer,
+            duration: extracted.duration,
+            scale: extracted.scale,
             promoChannels: extracted.promoChannels,
             agenda: extracted.agenda,
+            highlights: extracted.highlights,
             isSecondNotice: extracted.isSecondNotice,
             noticeKind: extracted.noticeKind,
             migrationFit: extracted.migrationFit,

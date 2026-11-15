@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   App as AntApp,
@@ -6,6 +6,7 @@ import {
   Drawer,
   Empty,
   Input,
+  Progress,
   Select,
   Space,
   Switch,
@@ -14,7 +15,18 @@ import {
   Tooltip,
   Typography
 } from 'antd'
-import { BookOutlined, CloudDownloadOutlined, FileTextOutlined, PlusOutlined, SwapOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import {
+  BookOutlined,
+  CloudDownloadOutlined,
+  FileTextOutlined,
+  InboxOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  SwapOutlined,
+  ThunderboltOutlined,
+  UserSwitchOutlined
+} from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { ModuleManifest } from './types'
 import type {
@@ -23,6 +35,9 @@ import type {
   BenchArticleInfo,
   BenchArticleStatus,
   BenchBrief,
+  BenchProgressEvent,
+  BenchProspectInfo,
+  BenchSchoolInfo,
   BenchSourceCategory,
   BenchSourceInfo,
   BenchStats
@@ -53,6 +68,13 @@ const MIGRATION_TEXT: Record<string, string> = {
   '': ''
 }
 
+const PROSPECT_TEXT: Record<string, { text: string; cls: string }> = {
+  untried: { text: '未找', cls: '' },
+  found: { text: '找到了', cls: 'bench-prospect-found' },
+  empty: { text: '没找到', cls: '' },
+  blocked: { text: '被拦', cls: 'bench-prospect-blocked' }
+}
+
 function shortDate(value: string | null): string {
   if (!value) return '—'
   return value.slice(0, 16)
@@ -68,30 +90,54 @@ function daysAgo(days: number): string {
 
 function BenchmarkPage(): JSX.Element {
   const { message } = AntApp.useApp()
+
   const [stats, setStats] = useState<BenchStats | null>(null)
   const [rows, setRows] = useState<BenchArticleInfo[]>([])
-  const [schools, setSchools] = useState<string[]>([])
+  const [schoolOptions, setSchoolOptions] = useState<string[]>([])
   const [kinds, setKinds] = useState<string[]>([])
+  const [schoolList, setSchoolList] = useState<BenchSchoolInfo[]>([])
+  const [sources, setSources] = useState<BenchSourceInfo[]>([])
+
   const [busy, setBusy] = useState('')
+  const [progress, setProgress] = useState<BenchProgressEvent | null>(null)
+
   const [detail, setDetail] = useState<BenchArticleDetail | null>(null)
+  const [peers, setPeers] = useState<BenchArticleDetail[]>([])
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
   const [brief, setBrief] = useState<BenchBrief | null>(null)
-  /** 勾选用于并排对比的文章；最多 4 篇，再多就没法并排看了 */
   const [picked, setPicked] = useState<number[]>([])
   const [compare, setCompare] = useState<BenchArticleDetail[] | null>(null)
+
   const [sourcesOpen, setSourcesOpen] = useState(false)
-  const [sources, setSources] = useState<BenchSourceInfo[]>([])
   const [newName, setNewName] = useState('')
   const [newSchool, setNewSchool] = useState('')
   const [newCategory, setNewCategory] = useState<BenchSourceCategory>('student_union')
+
+  /** 账号清单抽屉：看某所学校打算找哪些号、哪些找着了 */
+  const [accountsSchool, setAccountsSchool] = useState<BenchSchoolInfo | null>(null)
+  const [prospects, setProspects] = useState<BenchProspectInfo[]>([])
+  const [extraAccount, setExtraAccount] = useState('')
 
   const [school, setSchool] = useState('')
   const [kind, setKind] = useState('')
   const [keyword, setKeyword] = useState('')
   const [secondOnly, setSecondOnly] = useState(false)
-  /** 时间窗口：最终版写的是「上海各高校一年内的所有活动」，所以默认给一年 */
+  /** 时间窗口：报名表写的是「上海各高校一年内的所有活动」，所以默认给一年 */
   const [range, setRange] = useState<'all' | 'half' | 'year'>('year')
+
+  const homeSchool = useMemo(() => schoolList.find((s) => s.isHome) ?? null, [schoolList])
+  const withData = useMemo(() => schoolList.filter((s) => s.articleCount > 0), [schoolList])
+  /**
+   * 默认只摆出「已经采到东西的」和本校。
+   * 28 张卡片一次铺开会把第一步撑满整屏，而第一次打开的人真正要看的是
+   * 「哪些学校我已经有数据了」，不是「理论上能采多少所」。
+   */
+  const [showAllSchools, setShowAllSchools] = useState(false)
+  const visibleSchools = useMemo(
+    () => (showAllSchools ? schoolList : schoolList.filter((s) => s.isHome || s.articleCount > 0)),
+    [schoolList, showAllSchools]
+  )
 
   /** 当前筛选条件。列表和简报共用同一份，保证「看到什么就导出什么」 */
   const currentFilter = useCallback(
@@ -108,17 +154,20 @@ function BenchmarkPage(): JSX.Element {
 
   const load = useCallback(async () => {
     const filter = currentFilter()
-    const [nextStats, nextRows, nextSchools, nextKinds, nextSources] = await Promise.all([
-      window.api.benchStats(),
-      window.api.benchArticles(filter),
-      window.api.benchSchools(),
-      window.api.benchKinds(),
-      window.api.benchSources()
-    ])
+    const [nextStats, nextRows, nextSchools, nextKinds, nextSchoolList, nextSources] =
+      await Promise.all([
+        window.api.benchStats(),
+        window.api.benchArticles(filter),
+        window.api.benchSchools(),
+        window.api.benchKinds(),
+        window.api.benchSchoolList(),
+        window.api.benchSources()
+      ])
     setStats(nextStats)
     setRows(nextRows)
-    setSchools(nextSchools)
+    setSchoolOptions(nextSchools)
     setKinds(nextKinds)
+    setSchoolList(nextSchoolList)
     setSources(nextSources)
   }, [currentFilter])
 
@@ -126,19 +175,88 @@ function BenchmarkPage(): JSX.Element {
     void load()
   }, [load])
 
+  // 查找进度由主进程推过来：一次查找要跑几十秒，没有反馈用户会以为卡死
+  useEffect(() => {
+    return window.api.benchOnProgress((e) => setProgress(e))
+  }, [])
+
   const run = async (label: string, action: () => Promise<string>): Promise<void> => {
     setBusy(label)
     try {
       const tip = await action()
       await load()
-      // 空字符串表示「这个动作自己把结果展示出来了」，不必再弹一条提示
       if (tip) message.success(tip)
     } catch (error) {
       message.error(error instanceof Error ? error.message : String(error))
     } finally {
       setBusy('')
+      setProgress(null)
     }
   }
+
+  // ---------------- 第一步：按学校找 ----------------
+
+  /**
+   * 去一所学校找文章。
+   *
+   * 这一步慢是常态：每个账号之间要停三五秒，不然搜索引擎立刻要求验证码。
+   * 所以按钮上直接写「约 1 分钟」，而不是让人对着转圈猜。
+   */
+  const discover = (target: BenchSchoolInfo): void => {
+    if (busy) {
+      message.info('上一个动作还没跑完，等它结束再点')
+      return
+    }
+    setProgress({ school: target.name, current: 0, total: 0, account: '', note: '准备中' })
+    void run(`discover:${target.name}`, async () => {
+      const r = await window.api.benchDiscover(target.name)
+      if (r.blocked) {
+        // 被拦不是「没找到」，是「现在别再试了」，两种说法要分开
+        message.warning(r.message)
+        return ''
+      }
+      if (!r.accepted) {
+        message.info(r.message)
+        return ''
+      }
+      return `${target.name}：${r.message}`
+    })
+  }
+
+  const setHome = (name: string): void => {
+    void run('home', async () => {
+      await window.api.benchSchoolHome(name)
+      return `本校已设为「${name}」`
+    })
+  }
+
+  const importSeeds = (): void => {
+    void run('seed', async () => {
+      const r = await window.api.benchSeedImport()
+      if (!r.accepted) return '内置样本都已经在库里了'
+      return `已导入内置样本 ${r.accepted} 篇（重复 ${r.duplicated} 篇），接着点「采集正文」`
+    })
+  }
+
+  const openAccounts = (target: BenchSchoolInfo): void => {
+    setAccountsSchool(target)
+    setExtraAccount('')
+    void window.api.benchProspects(target.name).then(setProspects)
+  }
+
+  const addAccountAndDiscover = (): void => {
+    const target = accountsSchool
+    const name = extraAccount.trim()
+    if (!target || !name) return
+    void run('discover', async () => {
+      const r = await window.api.benchDiscover(target.name, [name])
+      const next = await window.api.benchProspects(target.name)
+      setProspects(next)
+      return r.accepted ? `${name}：${r.message}` : `${name}：${r.message}`
+    })
+  }
+
+  // ---------------- 第二步：采内容 ----------------
 
   const doImport = (): void => {
     void run('import', async () => {
@@ -168,13 +286,20 @@ function BenchmarkPage(): JSX.Element {
   const doExtract = (): void => {
     void run('extract', async () => {
       const r = await window.api.benchExtract(20)
-      const byRule = r.mode === 'rule' ? '（未配模型，按规则抽取：只有类型、时间、地点）' : ''
+      const byRule = r.mode === 'rule' ? '（未配模型，按规则抽取，细节字段会少一些）' : ''
       return `抽取完成${byRule}：活动 ${r.activities}，非活动 ${r.skipped}，失败 ${r.failed}`
     })
   }
 
+  // ---------------- 第三步：看结果 ----------------
+
   const openDetail = (id: number): void => {
-    void window.api.benchArticle(id).then((d) => setDetail(d))
+    void window.api.benchArticle(id).then((d) => {
+      setDetail(d)
+      setPeers([])
+      // 本校做法随手带上：看完外校的下一步必然是「那我们呢」
+      if (d && !d.isHome) void window.api.benchHomeCompare(id).then(setPeers)
+    })
   }
 
   const doBrief = (): void => {
@@ -242,39 +367,57 @@ function BenchmarkPage(): JSX.Element {
     {
       title: '标题',
       dataIndex: 'title',
+      // 标题长短差得远（有的带整串活动名，有的只有一个词）。不锁单行的话，
+      // 长标题折成三四行，行高参差不齐，扫一眼看不出哪几篇是一类。
+      ellipsis: true,
       render: (_v, row) => (
         <Typography.Link onClick={() => openDetail(row.id)}>
           {row.title || row.url.slice(0, 40)}
         </Typography.Link>
       )
     },
-    { title: '学校', dataIndex: 'school', width: 110, render: (v: string) => v || '—' },
-    { title: '公众号', dataIndex: 'sourceName', width: 140, render: (v: string) => v || '—' },
+    {
+      title: '学校',
+      dataIndex: 'school',
+      // 要放得下「上海科技大学」＋一个「本校」标签，窄了会折成两行
+      width: 142,
+      render: (v: string, row) =>
+        v ? (
+          <Space size={4}>
+            <span>{v}</span>
+            {row.isHome ? <Tag color="purple">本校</Tag> : null}
+          </Space>
+        ) : (
+          <span className="bench-muted">待识别</span>
+        )
+    },
+    { title: '公众号', dataIndex: 'sourceName', width: 112, ellipsis: true, render: (v: string) => v || '—' },
     {
       title: '发布时间',
       dataIndex: 'publishedAt',
-      width: 140,
+      // 「2026-10-11 19:52」是一行放得下的最小宽度，再窄就折成两行
+      width: 126,
       render: (v: string | null) => shortDate(v)
     },
     {
       // 周次前面那个「约」不能省：这个数多半是按日期和开学日推出来的，
       // 不是原文写的。各校校历不同，标成确数会被当成依据。
-      title: '周次（约）',
+      title: '周次',
       dataIndex: 'weekNo',
-      width: 86,
+      width: 62,
       render: (v: number | null) => (v ? `约${v}周` : '—')
     },
-    { title: '类型', dataIndex: 'kind', width: 110, render: (v: string) => v || '—' },
+    { title: '类型', dataIndex: 'kind', width: 82, render: (v: string) => v || '—' },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 100,
+      width: 76,
       render: (v: BenchArticleStatus) => <Tag color={STATUS_TEXT[v].color}>{STATUS_TEXT[v].text}</Tag>
     },
     {
       title: '标记',
       dataIndex: 'isSecondNotice',
-      width: 96,
+      width: 72,
       render: (v: boolean, row) =>
         v ? (
           <Tooltip title="这篇是改期/换场地/取消之类的二次通知">
@@ -284,15 +427,24 @@ function BenchmarkPage(): JSX.Element {
     }
   ]
 
+  const discoveringSchool = busy.startsWith('discover:') ? busy.slice('discover:'.length) : ''
+
   return (
     <div className="bench">
       <div className="bench-head">
         <div className="bench-title">
-          <BookOutlined /> 跨校对标库
+          <BookOutlined /> 兄弟高校公众号
+          <span className="bench-title-sub">
+            本校：{homeSchool?.name ?? '未设置'}
+            {homeSchool && homeSchool.articleCount === 0 ? '（还没采）' : ''}
+          </span>
         </div>
         <div className="bench-stats">
           {stats ? (
             <>
+              <span>
+                学校 <b>{withData.length}</b>
+              </span>
               <span>
                 源 <b>{stats.sources}</b>
               </span>
@@ -308,110 +460,234 @@ function BenchmarkPage(): JSX.Element {
         </div>
       </div>
 
-      <Space className="bench-tools" wrap>
-        <Button onClick={() => setSourcesOpen(true)}>
-          公众号源（{stats?.sources ?? 0}）
-        </Button>
-        <Button icon={<PlusOutlined />} onClick={() => setImportOpen(true)}>
-          导入链接
-        </Button>
-        <Button
-          icon={<CloudDownloadOutlined />}
-          loading={busy === 'fetch'}
-          disabled={!!busy && busy !== 'fetch'}
-          onClick={doFetch}
-        >
-          采集正文
-        </Button>
-        <Button
-          icon={<ThunderboltOutlined />}
-          loading={busy === 'extract'}
-          disabled={!!busy && busy !== 'extract'}
-          onClick={doExtract}
-        >
-          抽字段
-        </Button>
-        <Button
-          type="primary"
-          icon={<FileTextOutlined />}
-          loading={busy === 'brief'}
-          disabled={!!busy && busy !== 'brief'}
-          onClick={doBrief}
-        >
-          生成简报
-        </Button>
-        <Button
-          icon={<SwapOutlined />}
-          disabled={picked.length < 2 || (!!busy && busy !== 'compare')}
-          loading={busy === 'compare'}
-          onClick={doCompare}
-        >
-          并排对比{picked.length ? `（${picked.length}）` : ''}
-        </Button>
-        <Select
-          style={{ width: 130 }}
-          value={range}
-          onChange={(v) => setRange(v)}
-          options={[
-            { value: 'year', label: '近一年' },
-            { value: 'half', label: '近半年' },
-            { value: 'all', label: '全部' }
-          ]}
-        />
-        <Select
-          style={{ width: 150 }}
-          placeholder="全部学校"
-          allowClear
-          value={school || undefined}
-          onChange={(v) => setSchool(v ?? '')}
-          options={schools.map((s) => ({ value: s, label: s }))}
-        />
-        <Select
-          style={{ width: 140 }}
-          placeholder="全部类型"
-          allowClear
-          value={kind || undefined}
-          onChange={(v) => setKind(v ?? '')}
-          options={kinds.map((k) => ({ value: k, label: k }))}
-        />
-        <Input
-          style={{ width: 160 }}
-          placeholder="标题关键词"
-          allowClear
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-        />
-        <Space size={4}>
-          <Switch size="small" checked={secondOnly} onChange={setSecondOnly} />
-          <span>只看二次通知</span>
+      {/* ---------- 第一步：选学校 ---------- */}
+      <section className="bench-step">
+        <div className="bench-step-head">
+          <span className="bench-step-no">1</span>
+          选学校，让软件自己去公众号里找文章
+          <span className="bench-step-hint">
+            点某个学校的「找文章」，它就会按「校名+学生会 / 团委」这类常见命名去搜，
+            每个学校几十秒。搜的是搜索引擎收录过的公开推文，不是这个号的全部历史。
+          </span>
+        </div>
+
+        {progress ? (
+          <div className="bench-step-body">
+            <Progress
+              percent={
+                progress.total ? Math.round((progress.current / progress.total) * 100) : 0
+              }
+              size="small"
+              style={{ width: 220 }}
+              status="active"
+            />
+            <span className="bench-muted">
+              {progress.school}
+              {progress.account ? ` · 正在找「${progress.account}」` : ''}
+              {progress.total ? `（${progress.current}/${progress.total}）` : ''}
+              {progress.note && !progress.account ? ` · ${progress.note}` : ''}
+            </span>
+          </div>
+        ) : null}
+
+        <div className="bench-schools">
+          {visibleSchools.map((s) => (
+            <div
+              key={s.id}
+              className={['bench-school', s.isHome ? 'bench-school-home' : '', s.articleCount ? '' : 'bench-school-idle']
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <div className="bench-school-top">
+                <span className="bench-school-name" title={s.name}>
+                  {s.name}
+                </span>
+                {s.isHome ? <Tag color="purple">本校</Tag> : null}
+              </div>
+              <div className="bench-school-count">
+                {s.articleCount ? (
+                  <>
+                    <b>{s.articleCount}</b> 篇 · <b>{s.activityCount}</b> 场 · {s.sourceCount} 个号
+                  </>
+                ) : (
+                  '还没采'
+                )}
+              </div>
+              <div className="bench-school-actions">
+                <Button
+                  size="small"
+                  icon={<SearchOutlined />}
+                  loading={discoveringSchool === s.name}
+                  disabled={!!busy && discoveringSchool !== s.name}
+                  onClick={() => discover(s)}
+                >
+                  找文章
+                </Button>
+                <Button size="small" type="text" onClick={() => openAccounts(s)}>
+                  账号
+                </Button>
+                {!s.isHome ? (
+                  <Tooltip title="把本校改成这一所：简报里会多出「本校基准」一节">
+                    <Button
+                      size="small"
+                      type="text"
+                      className="bench-school-homepick"
+                      icon={<UserSwitchOutlined />}
+                      onClick={() => setHome(s.name)}
+                    />
+                  </Tooltip>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bench-step-body">
+          <Button size="small" type="text" onClick={() => setShowAllSchools((v) => !v)}>
+            {showAllSchools
+              ? `只看已有数据的（${withData.length} 所）`
+              : `显示全部 ${schoolList.length} 所`}
+          </Button>
+          <Tooltip title="装好就有点东西可看。这批链接是随软件带的，不用联网去搜">
+            <Button size="small" icon={<InboxOutlined />} loading={busy === 'seed'} onClick={importSeeds}>
+              导入内置样本
+            </Button>
+          </Tooltip>
+          <span className="bench-step-hint">
+            不想按学校搜也行：下面「导入链接」可以直接粘公众号文章地址。
+          </span>
+        </div>
+      </section>
+
+      {/* ---------- 第二步：采内容 ---------- */}
+      <section className="bench-step">
+        <div className="bench-step-head">
+          <span className="bench-step-no">2</span>
+          把链接变成正文，再把正文抽成字段
+          <span className="bench-step-hint">
+            采集要真正打开文章，每篇间隔两三秒，20 篇大约一两分钟。
+          </span>
+        </div>
+        <div className="bench-step-body">
+          <Button icon={<PlusOutlined />} onClick={() => setImportOpen(true)}>
+            导入链接
+          </Button>
+          <Button
+            icon={<CloudDownloadOutlined />}
+            loading={busy === 'fetch'}
+            disabled={!!busy && busy !== 'fetch'}
+            onClick={doFetch}
+          >
+            采集正文
+          </Button>
+          <Button
+            icon={<ThunderboltOutlined />}
+            loading={busy === 'extract'}
+            disabled={!!busy && busy !== 'extract'}
+            onClick={doExtract}
+          >
+            抽字段
+          </Button>
+          <Button onClick={() => void load()} icon={<ReloadOutlined />} disabled={!!busy}>
+            刷新
+          </Button>
+        </div>
+      </section>
+
+      {/* ---------- 第三步：看结果 ---------- */}
+      <section className="bench-step">
+        <div className="bench-step-head">
+          <span className="bench-step-no">3</span>
+          按条件筛，出简报或并排看
+          <span className="bench-step-hint">筛选条件同时决定简报的范围，看到什么就导出什么。</span>
+        </div>
+
+        <Space className="bench-tools" wrap>
+          <Select
+            style={{ width: 130 }}
+            value={range}
+            onChange={(v) => setRange(v)}
+            options={[
+              { value: 'year', label: '近一年' },
+              { value: 'half', label: '近半年' },
+              { value: 'all', label: '全部' }
+            ]}
+          />
+          <Select
+            style={{ width: 160 }}
+            placeholder="全部学校"
+            allowClear
+            value={school || undefined}
+            onChange={(v) => setSchool(v ?? '')}
+            options={schoolOptions.map((s) => ({ value: s, label: s }))}
+          />
+          <Select
+            style={{ width: 140 }}
+            placeholder="全部类型"
+            allowClear
+            value={kind || undefined}
+            onChange={(v) => setKind(v ?? '')}
+            options={kinds.map((k) => ({ value: k, label: k }))}
+          />
+          <Input
+            style={{ width: 160 }}
+            placeholder="标题关键词"
+            allowClear
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+          />
+          <Space size={4}>
+            <Switch size="small" checked={secondOnly} onChange={setSecondOnly} />
+            <span>只看二次通知</span>
+          </Space>
+          <Button type="primary" icon={<FileTextOutlined />} loading={busy === 'brief'} disabled={!!busy && busy !== 'brief'} onClick={doBrief}>
+            生成简报
+          </Button>
+          <Button
+            icon={<SwapOutlined />}
+            disabled={picked.length < 2 || (!!busy && busy !== 'compare')}
+            loading={busy === 'compare'}
+            onClick={doCompare}
+          >
+            并排对比{picked.length ? `（${picked.length}）` : ''}
+          </Button>
+          <Button onClick={() => setSourcesOpen(true)}>
+            公众号源（{stats?.sources ?? 0}）
+          </Button>
         </Space>
-      </Space>
 
-      {!stats?.articles ? (
-        <Empty
-          className="bench-empty"
-          description="库里还没有文章。先点「导入链接」粘一批公众号链接，再点「采集正文」。"
-        />
-      ) : (
-        <Table
-          className="bench-table"
-          size="small"
-          rowKey="id"
-          pagination={{ pageSize: 50, showSizeChanger: false }}
-          columns={columns}
-          dataSource={rows}
-          rowSelection={{
-            selectedRowKeys: picked,
-            onChange: (keys) => setPicked(keys as number[]),
-            // 最多四篇：再多并排就挤成一团，读不出差异
-            getCheckboxProps: (row) => ({ disabled: picked.length >= 4 && !picked.includes(row.id) })
-          }}
-        />
-      )}
+        {!stats?.articles ? (
+          <Empty
+            className="bench-empty"
+            description="库里还没有文章。上面点「导入内置样本」立刻有东西可看，或者按学校去搜。"
+          />
+        ) : (
+          <Table
+            className="bench-table"
+            size="small"
+            rowKey="id"
+            // 默认的 auto 布局按内容分配宽度：公众号名长就把「标题」挤成一列竖排字，
+            // width 写了也不管用。锁成 fixed，宽度才按这里写的算。
+            tableLayout="fixed"
+            pagination={{ pageSize: 50, showSizeChanger: false }}
+            columns={columns}
+            dataSource={rows}
+            rowSelection={{
+              selectedRowKeys: picked,
+              onChange: (keys) => setPicked(keys as number[]),
+              // 最多四篇：再多并排就挤成一团，读不出差异
+              getCheckboxProps: (row) => ({
+                disabled: picked.length >= 4 && !picked.includes(row.id)
+              })
+            }}
+          />
+        )}
+      </section>
 
+      {/* ---------- 详情 ---------- */}
       <Drawer
         open={!!detail}
-        width={560}
+        width={600}
         onClose={() => setDetail(null)}
         title={detail?.title || '文章详情'}
         extra={
@@ -425,8 +701,10 @@ function BenchmarkPage(): JSX.Element {
         {detail ? (
           <div className="bench-detail">
             <div className="bench-detail-meta">
+              <span>{detail.school || '未识别学校'}</span>
               <span>{detail.sourceName || '未识别公众号'}</span>
               <span>{shortDate(detail.publishedAt)}</span>
+              {detail.isHome ? <Tag color="purple">本校</Tag> : null}
               <Tag color={STATUS_TEXT[detail.status].color}>{STATUS_TEXT[detail.status].text}</Tag>
             </div>
             {detail.error ? <Alert type="warning" showIcon message={detail.error} /> : null}
@@ -434,27 +712,31 @@ function BenchmarkPage(): JSX.Element {
               <div className="bench-fields">
                 <Field label="类型" value={detail.activity.kind} />
                 <Field label="主办" value={detail.activity.organizer} />
+                <Field label="协办" value={detail.activity.coOrganizer} />
                 <Field label="时间" value={detail.activity.startAt} />
                 <Field
                   label="周次"
                   value={detail.activity.weekNo ? `约第${detail.activity.weekNo}周（按日期推算）` : ''}
                 />
+                <Field label="时长" value={detail.activity.duration} />
                 <Field label="地点" value={detail.activity.location} />
+                <Field label="规模" value={detail.activity.scale} />
                 <Field label="对象" value={detail.activity.audience} />
                 <Field label="组织方式" value={detail.activity.orgForm} />
                 <Field label="参与方式" value={detail.activity.joinMethod} />
                 <Field label="宣传" value={detail.activity.promoChannels.join('、')} />
-                <Field
-                  label="可迁移"
-                  value={MIGRATION_TEXT[detail.activity.migrationFit]}
-                />
+                <Field label="可迁移" value={MIGRATION_TEXT[detail.activity.migrationFit]} />
                 <Field
                   label="把握"
-                  value={detail.activity.confidence ? `${Math.round(detail.activity.confidence * 100)}%` : ''}
+                  value={
+                    detail.activity.confidence
+                      ? `${Math.round(detail.activity.confidence * 100)}%`
+                      : ''
+                  }
                 />
-                <Field label="理由" value={detail.activity.migrationNote} />
+                <Wide label="依据" value={detail.activity.migrationNote} />
                 {detail.activity.agenda.length ? (
-                  <div className="bench-agenda">
+                  <div className="bench-wide">
                     <span className="bench-field-label">议程</span>
                     <ol>
                       {detail.activity.agenda.map((step, i) => (
@@ -463,8 +745,44 @@ function BenchmarkPage(): JSX.Element {
                     </ol>
                   </div>
                 ) : null}
+                {detail.activity.highlights.length ? (
+                  <div className="bench-wide">
+                    <span className="bench-field-label">特色</span>
+                    <ul>
+                      {detail.activity.highlights.map((step, i) => (
+                        <li key={i}>{step}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             ) : null}
+
+            {peers.length ? (
+              <div className="bench-peer">
+                <div className="bench-peer-head">
+                  <span>本校同类活动（{detail.activity?.kind || '同类型'}）</span>
+                  <Tag>基准</Tag>
+                </div>
+                {peers.map((p) => (
+                  <div key={p.id} className="bench-peer-item">
+                    <Typography.Link onClick={() => openDetail(p.id)}>
+                      {p.title || '(无标题)'}
+                    </Typography.Link>
+                    <span className="bench-muted">
+                      {p.activity?.startAt?.slice(0, 16) || p.publishedAt?.slice(0, 10) || '时间未写'}
+                      {p.activity?.location ? ` · ${p.activity.location}` : ''}
+                      {p.activity?.orgForm ? ` · ${p.activity.orgForm}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : detail.isHome ? null : (
+              <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+                本校还没有同类型的活动可对照。把本校加上采一次，这里就会并列出「我们是怎么做的」。
+              </Typography.Paragraph>
+            )}
+
             <Typography.Paragraph className="bench-body">
               {detail.body ? detail.body.slice(0, 3000) : '（没有正文）'}
             </Typography.Paragraph>
@@ -472,9 +790,10 @@ function BenchmarkPage(): JSX.Element {
         ) : null}
       </Drawer>
 
+      {/* ---------- 简报 ---------- */}
       <Drawer
         open={!!brief}
-        width={720}
+        width={760}
         onClose={() => setBrief(null)}
         title={brief?.title ?? '简报'}
         extra={
@@ -505,23 +824,86 @@ function BenchmarkPage(): JSX.Element {
         ) : null}
       </Drawer>
 
+      {/* ---------- 并排对比 ---------- */}
       <Drawer
         open={!!compare}
-        width={Math.min(1100, 320 * (compare?.length ?? 2) + 160)}
+        width={Math.min(1180, 340 * (compare?.length ?? 2) + 160)}
         onClose={() => setCompare(null)}
         title="并排对比"
       >
         {compare && compare.length >= 2 ? <CompareTable items={compare} /> : null}
       </Drawer>
 
+      {/* ---------- 账号清单 ---------- */}
       <Drawer
-        open={sourcesOpen}
-        width={720}
-        onClose={() => setSourcesOpen(false)}
-        title="公众号源"
+        open={!!accountsSchool}
+        width={620}
+        onClose={() => setAccountsSchool(null)}
+        title={accountsSchool ? `${accountsSchool.name} · 要找的公众号` : '账号清单'}
       >
+        {accountsSchool ? (
+          <div className="bench-detail">
+            <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+              下面这些名字是按「校名/简称 + 学生会、团委、研究生会…」推出来的，不是既成事实：
+              很多学校的号用的是花名（团聚上大、社彩同济），推出来的名字搜不到很正常。
+              搜不到的，把你知道的真名填在下面加进去。
+            </Typography.Paragraph>
+
+            <Space.Compact style={{ width: '100%' }}>
+              <Input
+                placeholder="比如：团聚上大 / 社彩同济"
+                value={extraAccount}
+                onChange={(e) => setExtraAccount(e.target.value)}
+                onPressEnter={addAccountAndDiscover}
+              />
+              <Button
+                type="primary"
+                icon={<SearchOutlined />}
+                loading={busy === 'discover'}
+                onClick={addAccountAndDiscover}
+              >
+                找这个号
+              </Button>
+            </Space.Compact>
+
+            <Table
+              size="small"
+              rowKey="id"
+              pagination={false}
+              dataSource={prospects}
+              locale={{ emptyText: '还没找过。点学校卡片上的「找文章」就会生成一批候选。' }}
+              columns={[
+                { title: '账号名', dataIndex: 'accountName' },
+                {
+                  title: '状态',
+                  dataIndex: 'status',
+                  width: 96,
+                  render: (v: string) => (
+                    <span className={PROSPECT_TEXT[v]?.cls ?? ''}>
+                      {PROSPECT_TEXT[v]?.text ?? v}
+                    </span>
+                  )
+                },
+                { title: '命中', dataIndex: 'hitCount', width: 64 },
+                {
+                  title: '说明',
+                  dataIndex: 'note',
+                  render: (v: string) => <span className="bench-muted">{v || '—'}</span>
+                }
+              ]}
+            />
+
+            <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+              找到的号会在采集时按文章里的真实公众号名自动建成「源」，并归到这所学校名下。
+            </Typography.Paragraph>
+          </div>
+        ) : null}
+      </Drawer>
+
+      {/* ---------- 公众号源 ---------- */}
+      <Drawer open={sourcesOpen} width={760} onClose={() => setSourcesOpen(false)} title="公众号源">
         <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
-          这里列的是要跟踪的公众号。名单本身不影响采集——采集的起点是链接——
+          这里列的是已经确认存在的公众号。名单本身不影响采集——采集的起点是链接——
           但它决定「这一篇算哪个学校的」，简报和对比都按这个分组。
         </Typography.Paragraph>
         <Space wrap style={{ marginBottom: 12 }}>
@@ -596,6 +978,7 @@ function BenchmarkPage(): JSX.Element {
         />
       </Drawer>
 
+      {/* ---------- 导入链接 ---------- */}
       <Drawer
         open={importOpen}
         width={520}
@@ -630,10 +1013,20 @@ function Field({ label, value }: { label: string; value: string | null }): JSX.E
   )
 }
 
+function Wide({ label, value }: { label: string; value: string | null }): JSX.Element | null {
+  if (!value) return null
+  return (
+    <div className="bench-wide">
+      <span className="bench-field-label">{label}</span>
+      <span>{value}</span>
+    </div>
+  )
+}
+
 /**
  * 并排对比要看的字段。
  *
- * 顺序是有讲究的：先「是什么、什么时候、在哪」，再「怎么办的」，
+ * 顺序有讲究：先「是什么、什么时候、在哪」，再「花了多少本钱怎么办的」，
  * 最后才是「我们能不能照做」。这个顺序就是跟人讲这件事的顺序。
  */
 const COMPARE_FIELDS: { label: string; get: (d: BenchArticleDetail) => string }[] = [
@@ -642,11 +1035,15 @@ const COMPARE_FIELDS: { label: string; get: (d: BenchArticleDetail) => string }[
   { label: '活动类型', get: (d) => d.activity?.kind ?? '' },
   { label: '时间', get: (d) => (d.activity?.startAt ? d.activity.startAt.slice(0, 16) : '') },
   { label: '周次（约）', get: (d) => (d.activity?.weekNo ? `约 ${d.activity.weekNo} 周` : '') },
+  { label: '时长', get: (d) => d.activity?.duration ?? '' },
   { label: '地点', get: (d) => d.activity?.location ?? '' },
+  { label: '规模', get: (d) => d.activity?.scale ?? '' },
   { label: '组织方式', get: (d) => d.activity?.orgForm ?? '' },
+  { label: '协办', get: (d) => d.activity?.coOrganizer ?? '' },
   { label: '面向', get: (d) => d.activity?.audience ?? '' },
   { label: '参与方式', get: (d) => d.activity?.joinMethod ?? '' },
   { label: '议程', get: (d) => (d.activity?.agenda ?? []).join(' → ') },
+  { label: '特色环节', get: (d) => (d.activity?.highlights ?? []).join('；') },
   { label: '宣传', get: (d) => (d.activity?.promoChannels ?? []).join('、') },
   { label: '可迁移', get: (d) => MIGRATION_TEXT[d.activity?.migrationFit ?? ''] ?? '' },
   { label: '依据', get: (d) => d.activity?.migrationNote ?? '' },
@@ -669,7 +1066,10 @@ function CompareTable({ items }: { items: BenchArticleDetail[] }): JSX.Element {
             {items.map((d) => (
               <th key={d.id}>
                 <div className="bench-compare-head">
-                  <span className="bench-compare-school">{d.school || '未填学校'}</span>
+                  <span className={d.isHome ? 'bench-compare-school bench-compare-home' : 'bench-compare-school'}>
+                    {d.school || '未填学校'}
+                    {d.isHome ? '（本校）' : ''}
+                  </span>
                   <span className="bench-compare-title">{d.title || d.url}</span>
                   <Button
                     size="small"
@@ -707,7 +1107,7 @@ function CompareTable({ items }: { items: BenchArticleDetail[] }): JSX.Element {
 
 export const benchmarkModule: ModuleManifest = {
   id: 'benchmark',
-  title: '对标库',
+  title: '公众号',
   icon: <BookOutlined />,
   route: '/benchmark',
   enabled: true,

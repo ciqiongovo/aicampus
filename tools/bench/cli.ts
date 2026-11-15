@@ -26,6 +26,8 @@ import { parseArticleHtml, renderHtml } from '../../app/src/main/services/benchm
 import { extractByRules } from '../../app/src/main/services/benchmark/rule-extract'
 import { extractActivity } from '../../app/src/main/services/benchmark/extractor'
 import { composeBrief } from '../../app/src/main/services/benchmark/brief'
+import { discoverSchool } from '../../app/src/main/services/benchmark/discover'
+import { HOME_SCHOOL, KNOWN_ACCOUNTS, SHANGHAI_SCHOOLS } from '../../app/src/shared/schools'
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
 
@@ -36,9 +38,17 @@ const GAP_MAX_MS = 5500
 /** 连续几次撞验证就停手：再抓下去每一篇都会变成 unreachable，白白污染队列 */
 const VERIFY_BREAKER = 3
 
-/** 默认库位置与 Electron 保持一致：%APPDATA%/InfoAgent/infoagent.db */
+/**
+ * 默认库位置与 Electron 保持一致。
+ *
+ * 1.0 起应用改名为「知枢」，库搬到 %APPDATA%/ZhiShu/zhishu.db；
+ * 老库还留在 InfoAgent 目录里，所以先找新位置，找不到再退回旧的，
+ * 免得升级之后命令行工具突然说「没有数据库」。
+ */
 function defaultDbPath(): string {
   const appData = process.env.APPDATA ?? join(process.env.USERPROFILE ?? '.', 'AppData', 'Roaming')
+  const fresh = join(appData, 'ZhiShu', 'zhishu.db')
+  if (existsSync(fresh)) return fresh
   return join(appData, 'InfoAgent', 'infoagent.db')
 }
 
@@ -80,6 +90,8 @@ function openDb(args: Args) {
     process.exit(1)
   }
   const db = openDatabase(dbPath)
+  // 与界面一样：老库缺学校清单时补上，命令行才看得到「上科大是本校、它有哪些号」
+  dao.seedSchools(db, SHANGHAI_SCHOOLS, HOME_SCHOOL, KNOWN_ACCOUNTS)
   console.log(`库：${dbPath}`)
   return db
 }
@@ -260,8 +272,12 @@ async function cmdExtract(args: Args): Promise<void> {
         audience: extracted.audience,
         orgForm: extracted.orgForm,
         joinMethod: extracted.joinMethod,
+        coOrganizer: extracted.coOrganizer,
+        duration: extracted.duration,
+        scale: extracted.scale,
         promoChannels: extracted.promoChannels,
         agenda: extracted.agenda,
+        highlights: extracted.highlights,
         isSecondNotice: extracted.isSecondNotice,
         noticeKind: extracted.noticeKind,
         migrationFit: extracted.migrationFit,
@@ -353,7 +369,9 @@ async function cmdSources(args: Args): Promise<void> {
     // 只补空值和纠错，不覆盖用户手工改过的——手工填的永远更可信。
     let changed = 0
     for (const s of rows) {
-      const guessed = guessSchool(s.name)
+      // 先看名字里有没有校名，再看它是不是某校已确认的号：
+      // 「书院的天空」这种花名只能靠后一条认出来
+      const guessed = guessSchool(s.name) || dao.schoolOfKnownAccount(db, s.name)
       if (!guessed || guessed === s.school) continue
       if (s.school && s.school !== guessed) {
         console.log(`保留手填：${s.name} → ${s.school}（规则猜 ${guessed}）`)
@@ -374,6 +392,40 @@ async function cmdSources(args: Args): Promise<void> {
   db.close()
 }
 
+/**
+ * 按学校去找公众号文章。
+ *
+ * 与界面上的「找文章」是同一条链路，只是没有进度条，直接把每一步打出来。
+ * 用法：discover 复旦大学 [--accounts "复旦大学学生会,团聚上大"] [--limit 5]
+ */
+async function runDiscover(args: Args): Promise<void> {
+  const school = args.positional[0]
+  if (!school) {
+    console.error('用法：discover <学校名> [--accounts "A,B"] [--limit 5]')
+    process.exit(1)
+  }
+  const db = openDb(args)
+  const custom = typeof args.flags.accounts === 'string'
+    ? args.flags.accounts.split(',').map((x) => x.trim()).filter(Boolean)
+    : undefined
+  const limit = typeof args.flags.limit === 'string' ? Number(args.flags.limit) : undefined
+  const result = await discoverSchool(db, {
+    school,
+    accounts: custom,
+    limit,
+    onProgress: (p) => {
+      console.log(`  [${p.current}/${p.total}] ${p.account} … ${p.note}`)
+    }
+  })
+  console.log(
+    `
+请求 ${result.requests} 次，命中 ${result.accountsHit} 个账号，` +
+      `新入队 ${result.accepted} 篇（重复 ${result.duplicated}）`
+  )
+  if (result.blocked) console.log('⚠ 搜索要求验证码，已停下，过 20–30 分钟再试')
+  db.close()
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
   switch (args.cmd) {
@@ -391,6 +443,9 @@ async function main(): Promise<void> {
       return cmdBrief(args)
     case 'list':
       return cmdList(args)
+    case 'discover':
+      await runDiscover(args)
+      break
     case 'sources':
       return cmdSources(args)
     default:

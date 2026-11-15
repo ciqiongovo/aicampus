@@ -23,8 +23,12 @@ export interface RuleExtracted {
   audience: string
   orgForm: string
   joinMethod: string
+  coOrganizer: string
+  duration: string
+  scale: string
   promoChannels: string[]
   agenda: string[]
+  highlights: string[]
   isSecondNotice: boolean
   noticeKind: BenchNoticeKind
   migrationFit: BenchMigrationFit
@@ -214,6 +218,80 @@ function findJoin(text: string): string {
   return JOIN_RULES.find((w) => text.includes(w)) ?? ''
 }
 
+/**
+ * 协办单位。
+ *
+ * 联办是很多活动办得起来的原因：「与 XX 学院联合举办」这句话里，
+ * 藏着的其实是「我们单独办不动」。所以这一栏要单独记，不能塞进组织方式里。
+ */
+function findCoOrganizer(text: string): string {
+  const explicit = text.match(
+    /(?:协办单位|承办单位|支持单位|合作单位|联合主办|联合承办)\s*[:：]?\s*([^\n，。；、]{2,24})/
+  )
+  if (explicit) return explicit[1].replace(/\s+/g, '').trim()
+  const joint = text.match(/与\s*([^\n，。；]{2,18}?)\s*(?:联合|共同)(?:举办|主办|承办)/)
+  if (joint) return joint[1].replace(/\s+/g, '').trim()
+  return ''
+}
+
+/**
+ * 时长。
+ *
+ * 晚会类的时长几乎都写在时间区间里（19:00–21:30），写「为期三天」的活动也常见。
+ * 只认这两种明确写法；「持续到深夜」这种形容不算时长。
+ */
+function findDuration(text: string): string {
+  const clock = text.match(/(\d{1,2}[:：]\d{2})\s*[-—–~～至]\s*(\d{1,2}[:：]\d{2})/)
+  if (clock) return `${clock[1].replace('：', ':')}–${clock[2].replace('：', ':')}`
+  const days = text.match(/为期\s*([一二三四五六七八九十两\d]+\s*(?:天|日|周|个月))|持续\s*([一二三四五六七八九十两\d]+\s*(?:天|日|周))/)
+  if (days) return `为期${(days[1] ?? days[2]).replace(/\s+/g, '')}`
+  return ''
+}
+
+/**
+ * 规模。
+ *
+ * 只抄原文给的数，不做换算：原文说「千余人」就写「千余人」，
+ * 硬换算成 1000 人会假精确，而这一栏后面要用来估预算与场地。
+ */
+function findScale(text: string): string {
+  const hit = text.match(
+    /(?:预计|约|逾|超过|近)?\s*(\d{2,5}\s*(?:余|多)?\s*(?:人|支队伍|个班级|所高校|个学院))/
+  )
+  if (hit) return hit[0].replace(/\s+/g, '').trim()
+  const vague = text.match(/(千余人|数百人|百余人|上万人|千人次)/)
+  return vague ? vague[1] : ''
+}
+
+/**
+ * 特色环节。
+ *
+ * 规则版只抓有明确措辞的：带「环节」「仪式」「互动」「打卡墙」这类名词的短语，
+ * 以及「首次/首创/创新」引出的短句。抓不到就空着——
+ * 特色这件事最难用规则判断，硬凑出来的「亮点」比空着更没用。
+ */
+function findHighlights(text: string): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  const push = (raw: string): void => {
+    const clean = raw.replace(/\s+/g, '').trim()
+    if (clean.length < 4 || clean.length > 24) return
+    if (seen.has(clean)) return
+    seen.add(clean)
+    out.push(clean)
+  }
+
+  for (const m of text.matchAll(
+    /([\u4e00-\u9fa5A-Za-z0-9·]{2,12}(?:打卡墙|打卡点|留言墙|签名墙|时光胶囊|盲盒|工作坊|开放麦|集市|市集|游园|闯关|互动区|共创))/g
+  )) {
+    push(m[1])
+  }
+  for (const m of text.matchAll(/(?:首次|首度|首创|创新推出|特别设置|独家)[^\n。！？，]{2,20}/g)) {
+    push(m[0])
+  }
+  return out.slice(0, 6)
+}
+
 function findOrgForm(text: string): string {
   const parts: string[] = []
   if (/线上|直播|腾讯会议|Zoom/i.test(text)) parts.push('线上')
@@ -314,8 +392,12 @@ export function extractByRules(input: {
     audience: '',
     orgForm: '',
     joinMethod: '',
+    coOrganizer: '',
+    duration: '',
+    scale: '',
     promoChannels: [],
     agenda: [],
+    highlights: [],
     isSecondNotice: false,
     noticeKind: '',
     migrationFit: '',
@@ -346,8 +428,12 @@ export function extractByRules(input: {
     audience: findAudience(head),
     orgForm,
     joinMethod: findJoin(head),
+    coOrganizer: findCoOrganizer(head),
+    duration: findDuration(head),
+    scale: findScale(head),
     promoChannels: PROMO_WORDS.filter((w) => head.includes(w)).slice(0, 6),
     agenda: findAgenda(head, kind),
+    highlights: findHighlights(head),
     isSecondNotice: !!second,
     noticeKind: second ? second.kind : '',
     migrationFit: migration.fit,

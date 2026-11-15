@@ -71,7 +71,7 @@ export interface HotlistCandidate {
   sourceLabel: string
 }
 
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) InfoAgent/0.1'
+const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ZhiShu/1.0'
 const FETCH_TIMEOUT_MS = 15_000
 const MAX_ITEMS_PER_SOURCE = 20
 const FOCUS_SETTING_KEY = 'dailyFocusTopics'

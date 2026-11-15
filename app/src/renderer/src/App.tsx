@@ -84,7 +84,7 @@ export default function App(): JSX.Element {
 
   return <Layout style={{ height: '100vh' }}>
     {navVisible && <Sider width={siderWidth} theme={resolved === 'dark' ? 'dark' : 'light'} className={navPinned ? 'app-sider' : 'app-sider app-nav-floating'} style={{ borderRight: '1px solid var(--line)' }}>
-      <div className="app-logo"><img className="app-logo-icon" src={appIcon} alt="InfoAgent" /><div className="app-logo-text"><div className="app-logo-title">INFOAGENT</div><div className="app-logo-sub">个人资讯工作台</div></div></div>
+      <div className="app-logo"><img className="app-logo-icon" src={appIcon} alt="知枢" /><div className="app-logo-text"><div className="app-logo-title">知枢</div><div className="app-logo-sub">高校活动对标</div></div></div>
       <div className="app-nav-controls"><Tooltip title={navPinned ? '取消固定，选择模块后自动隐藏' : '固定导航，保持展开'}><Button type="text" className={navPinned ? 'app-nav-btn app-nav-btn-active' : 'app-nav-btn'} aria-label={navPinned ? '取消固定导航' : '固定导航'} icon={navPinned ? <PushpinFilled /> : <PushpinOutlined />} onClick={() => setNavPinned((p) => !p)} /></Tooltip><Button type="text" className="app-nav-btn" aria-label="隐藏导航" icon={<CloseOutlined />} onClick={() => setNavVisible(false)} /></div>
       <Menu theme={resolved === 'dark' ? 'dark' : 'light'} mode="inline" selectedKeys={[currentKey]} items={menuItems} onClick={({ key }) => { navigate(key); if (!navPinned) setNavVisible(false) }} />
     </Sider>}

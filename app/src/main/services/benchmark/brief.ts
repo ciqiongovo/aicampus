@@ -43,6 +43,42 @@ function oneLine(label: string, value: string | null | undefined): string | null
   return v ? `- ${label}：${v}` : null
 }
 
+/**
+ * 一条活动的正文块。
+ *
+ * 字段顺序是从「是什么」到「能不能照做」：
+ * 时间地点是背景，组织方式与规模是成本，议程与特色是可抄的部分，
+ * 可迁移性与依据是结论。念的时候照着往下读就是一段话。
+ */
+function itemBlock(item: BenchBriefItem, index: number): string[] {
+  const lines: string[] = []
+  lines.push(`### ${index}. ${item.title || '(无标题)'}`)
+  const rows = [
+    oneLine('时间', fmtTime(item)),
+    item.startAt ? null : oneLine('推文发布于', item.publishedAt ? item.publishedAt.slice(0, 10) : ''),
+    oneLine('类型', item.kind),
+    oneLine('地点', item.location),
+    oneLine('组织方式', item.orgForm),
+    oneLine('协办', item.coOrganizer),
+    oneLine('时长', item.duration),
+    oneLine('规模', item.scale),
+    oneLine('面向', item.audience),
+    item.promoChannels.length ? oneLine('宣传形式', item.promoChannels.join('、')) : null,
+    oneLine('可迁移', FIT_TEXT[item.migrationFit] ?? '未评估'),
+    oneLine('依据', item.migrationNote)
+  ].filter(Boolean) as string[]
+  lines.push(...rows)
+  if (item.agenda.length) lines.push(`- 议程：${item.agenda.join(' → ')}`)
+  if (item.highlights.length) lines.push(`- 特色环节：${item.highlights.join('；')}`)
+  // 把握不足的标出来：这份简报会被拿去做决定，得让人知道哪几条没把握
+  if (item.confidence > 0 && item.confidence < 0.7) {
+    lines.push(`- 待核对：字段抽取把握 ${Math.round(item.confidence * 100)}%，建议对照原文`)
+  }
+  lines.push(`- 原文：${item.url}`)
+  lines.push('')
+  return lines
+}
+
 /** 把一组活动排成 Markdown。返回的字符串要能直接粘进 Word 或群聊 */
 export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string {
   const lines: string[] = []
@@ -60,16 +96,35 @@ export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string 
 
   lines.push('## 概览')
   lines.push('')
-  lines.push('| 学校 | 活动数 |')
-  lines.push('| --- | --- |')
-  for (const s of brief.perSchool) lines.push(`| ${s.school || '未填学校'} | ${s.count} |`)
+  lines.push('| 学校 | 活动数 | 备注 |')
+  lines.push('| --- | --- | --- |')
+  for (const s of brief.perSchool) {
+    const isHome = brief.items.some((i) => i.isHome && (i.school || '未填学校') === (s.school || '未填学校'))
+    lines.push(`| ${s.school || '未填学校'} | ${s.count} | ${isHome ? '本校基准' : ''} |`)
+  }
   lines.push('')
+
+  // 本校单列一节，放在最前。
+  // 对标的说服力来自「别人这么做，我们这么做」的并置，本校要是混在外校中间，
+  // 读的人得先分辨哪条是自己学校，一条条比下来很容易把本校做法当成外校经验。
+  const homeItems = brief.items.filter((i) => i.isHome)
+  if (homeItems.length) {
+    const homeName = homeItems[0].school || '本校'
+    lines.push(`## 本校基准：${homeName}（${homeItems.length} 场）`)
+    lines.push('')
+    lines.push('> 这一节是本校自己的做法，用来和下面各校对比，不是要照搬的对象。')
+    lines.push('')
+    for (const [i, item] of homeItems.entries()) {
+      lines.push(...itemBlock(item, i + 1))
+    }
+  }
 
   // 分学校铺开：同一所学校的事放在一起，念的时候不用来回跳。
   // 顺序跟上面的概览表一模一样（活动多的在前，同数量按校名），
   // 否则表里第一行和正文第一节对不上，读的人要来回确认是不是漏了。
   const bySchool = new Map<string, BenchBriefItem[]>()
   for (const item of brief.items) {
+    if (item.isHome) continue
     const key = item.school || '未填学校'
     if (!bySchool.has(key)) bySchool.set(key, [])
     bySchool.get(key)!.push(item)
@@ -85,35 +140,21 @@ export function buildBriefMarkdown(brief: Omit<BenchBrief, 'markdown'>): string 
     lines.push(`## ${school}（${items.length} 场）`)
     lines.push('')
     for (const [i, item] of items.entries()) {
-      lines.push(`### ${i + 1}. ${item.title || '(无标题)'}`)
-      const rows = [
-        oneLine('时间', fmtTime(item)),
-        item.startAt ? null : oneLine('推文发布于', item.publishedAt ? item.publishedAt.slice(0, 10) : ''),
-        oneLine('类型', item.kind),
-        oneLine('地点', item.location),
-        oneLine('组织方式', item.orgForm),
-        oneLine('面向', item.audience),
-        item.promoChannels.length ? oneLine('宣传形式', item.promoChannels.join('、')) : null,
-        oneLine('可迁移', FIT_TEXT[item.migrationFit] ?? '未评估'),
-        oneLine('依据', item.migrationNote)
-      ].filter(Boolean) as string[]
-      lines.push(...rows)
-      if (item.agenda.length) {
-        lines.push(`- 议程：${item.agenda.join(' → ')}`)
-      }
-      // 把握不足的标出来：这份简报会被拿去做决定，得让人知道哪几条没把握
-      if (item.confidence > 0 && item.confidence < 0.7) {
-        lines.push(`- 待核对：字段抽取把握 ${Math.round(item.confidence * 100)}%，建议对照原文`)
-      }
-      lines.push(`- 原文：${item.url}`)
-      lines.push('')
+      lines.push(...itemBlock(item, i + 1))
     }
+  }
+
+  if (!homeItems.length && brief.items.length) {
+    lines.push('> 本校还没有入档的活动，所以这份简报只有外校情况，没有可对照的基准行。')
+    lines.push('> 在「学校」里把本校勾上、采集一次，下次生成就会多出「本校基准」一节。')
+    lines.push('')
   }
 
   lines.push('---')
   lines.push('')
   lines.push(
-    '字段说明：时间取自原文；周次为按开学日推算的近似值（各校校历不同），仅供参考。' +
+    '字段说明：时间、地点、协办、时长、规模均取自原文，原文没写就不列。' +
+      '周次为按开学日推算的近似值（各校校历不同），仅供参考。' +
       '标「待核对」的条目抽取把握不足七成，做决定前请对照原文。'
   )
   return lines.join('\n')

@@ -137,7 +137,7 @@ export function tailLogLines(text: string, limit = 20): string[] {
 
 const PHASE_DETAIL: Record<QceRuntimePhase, string> = {
   unsupported: '仅支持 Windows：QCE 依赖 Windows 注入器',
-  missing_runtime: '安装包缺少 QCE 运行集，请重新安装 InfoAgent',
+  missing_runtime: '安装包缺少 QCE 运行集，请重新安装知枢',
   qq_not_found: '未检测到 QQNT，请先安装 QQ 9.9.x 或手动选择 QQ.exe',
   stopped: 'QCE 未启动',
   starting: '正在启动 QQ 与 QCE，请留意 QQ 登录窗',

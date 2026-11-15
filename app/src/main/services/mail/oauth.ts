@@ -240,7 +240,7 @@ export function beginOauth(
               '授权成功',
               '<h2 class="ok">授权成功</h2>' +
                 (flow.email ? '<p>已获取账号 ' + flow.email + '</p>' : '') +
-                '<p>可以关闭此页面，返回 InfoAgent 完成账号设置。</p>'
+                '<p>可以关闭此页面，返回知枢完成账号设置。</p>'
             )
           )
         } catch (error) {

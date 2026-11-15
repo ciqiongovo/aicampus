@@ -205,7 +205,7 @@ export class ElectronZhihuGateway implements ZhihuGateway {
       width: 1280,
       height: 920,
       show: false,
-      title: 'InfoAgent 知乎推荐流',
+      title: '知枢 · 知乎推荐流',
       webPreferences: {
         partition: ZHIHU_PARTITION,
         contextIsolation: true,
