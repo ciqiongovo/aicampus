@@ -104,6 +104,8 @@ function BenchmarkPage(): JSX.Element {
 
   const [busy, setBusy] = useState('')
   const [progress, setProgress] = useState<BenchProgressEvent | null>(null)
+  /** 批量补采跑到第几所。为 null 表示这不是一次批量 */
+  const [batchInfo, setBatchInfo] = useState<{ i: number; total: number } | null>(null)
 
   const [detail, setDetail] = useState<BenchArticleDetail | null>(null)
   const [peers, setPeers] = useState<BenchArticleDetail[]>([])
@@ -333,6 +335,61 @@ function BenchmarkPage(): JSX.Element {
         .filter(Boolean)
         .join('，')
     })
+  }
+
+  /**
+   * 一次补几所「几乎没数据」的学校。
+   *
+   * 为什么要有这个：库里 13 所学校、有 5 所只有一两篇，凑在一起没法比。
+   * 一所一所点，每次都得等十几秒再找下一张卡片——真正想做的是「把空的那几所填一下」，
+   * 这个动作该有一个按钮。
+   *
+   * 为什么不放在主进程做：每所学校的搜索各自有配额与节流，串行调用现成的
+   * benchDiscover 就能继承那套保护（连续两次被拦就收工）。再写一条批量通道，
+   * 等于把同一套节流复制一遍，两处迟早不一致。
+   */
+  const discoverBatch = (): void => {
+    if (busy) {
+      message.info('上一个动作还没跑完，等它结束再点')
+      return
+    }
+    const targets = schoolList
+      .filter((s) => s.articleCount < 3)
+      .sort((a, b) => a.articleCount - b.articleCount || a.name.localeCompare(b.name))
+      .slice(0, 5)
+    if (!targets.length) {
+      message.info('每所学校都已有 3 篇以上，暂时不用补')
+      return
+    }
+
+    void run('batch', async () => {
+      const gained: string[] = []
+      const failed: string[] = []
+      let blocked = ''
+      for (const [i, t] of targets.entries()) {
+        setBatchInfo({ i: i + 1, total: targets.length })
+        try {
+          const r = await window.api.benchDiscover(t.name)
+          if (r.blocked) {
+            blocked = r.message
+            break
+          }
+          if (r.accepted) gained.push(`${t.name} +${r.accepted}`)
+          else failed.push(t.name)
+        } catch (error) {
+          failed.push(t.name)
+        }
+      }
+      if (blocked) {
+        return `补到一半被拦下（${blocked}）。已入队：${gained.join('、') || '无'}。过 20–30 分钟再点一次`
+      }
+      if (!gained.length) {
+        return `这 ${targets.length} 所都没搜到新文章，换几个账号名再试（点学校卡片上的「账号」）`
+      }
+      return `补了 ${gained.length} 所：${gained.join('、')}。${
+        failed.length ? `没搜到：${failed.join('、')}。` : ''
+      }接着点「跑完队列」把正文和字段补上`
+    }).finally(() => setBatchInfo(null))
   }
 
   const setHome = (name: string): void => {
@@ -680,6 +737,7 @@ function BenchmarkPage(): JSX.Element {
         status="active"
       />
       <span className="bench-muted">
+        {batchInfo ? `批量补采 ${batchInfo.i}/${batchInfo.total} · ` : ''}
         {progress.school}
         {progress.account ? ` · 「${progress.account}」` : ''}
         {progress.total ? `（${progress.current}/${progress.total}）` : ''}
@@ -802,6 +860,17 @@ function BenchmarkPage(): JSX.Element {
               ? `只看已有数据的（${withData.length} 所）`
               : `显示全部 ${schoolList.length} 所`}
           </Button>
+          <Tooltip title="自动挑出文章最少的 5 所学校，依次搜一遍。每所之间会停顿，整轮约两三分钟；中途撞上验证码会自动收工">
+            <Button
+              size="small"
+              icon={<ThunderboltOutlined />}
+              loading={busy === 'batch'}
+              disabled={!!busy && busy !== 'batch'}
+              onClick={discoverBatch}
+            >
+              补齐最缺的 5 所
+            </Button>
+          </Tooltip>
           <Tooltip title="装好就有点东西可看。这批链接是随软件带的，不用联网去搜">
             <Button size="small" icon={<InboxOutlined />} loading={busy === 'seed'} onClick={importSeeds}>
               导入内置样本
