@@ -6,7 +6,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'app/**'
+      - 'app/src/**'
+      - 'app/resources/**'
+      - 'app/package.json'
+      - 'app/pnpm-lock.yaml'
+      - 'app/electron.vite.config.*'
       - '.github/workflows/build-release.yml'
   workflow_dispatch:
 
@@ -31,9 +35,21 @@ jobs:
         working-directory: app
         run: pnpm install --no-frozen-lockfile
 
+      # pnpm 10 默认不执行依赖自带的安装脚本，electron 的 dist 就不会被下载；
+      # 而打包配置里的 electronDist 明确指向这个目录，所以手动补一次。
+      - name: 准备 Electron 运行时
+        working-directory: app
+        shell: pwsh
+        run: |
+          if (Test-Path node_modules/electron/dist) {
+            Write-Host 'Electron dist 已存在'
+          } else {
+            node node_modules/electron/install.js
+          }
+
       - name: 打包单文件 exe
         working-directory: app
-        run: pnpm run dist:portable
+        run: pnpm run dist:portable -- --publish never
 
       - name: 准备发布文件与校验和
         id: pack
