@@ -37,9 +37,9 @@ async function main() {
   const db = openDatabase(DB_FILE)
 
   const accId = accountsDao.insertAccount(db, {
-    provider: 'shanghaitech', label: '上科大邮箱', address: 'suncan2026@shanghaitech.edu.cn',
+    provider: 'shanghaitech', label: '上科大邮箱', address: 'demo.user@example.edu.cn',
     host: 'imap.shanghaitech.edu.cn', port: 993, encryption: 'ssl',
-    username: 'suncan2026@shanghaitech.edu.cn', secret_enc: 'enc://sample', folder: 'INBOX',
+    username: 'demo.user@example.edu.cn', secret_enc: 'enc://sample', folder: 'INBOX',
     auth_mode: 'appPassword', last_uidvalidity: 1, last_uid: 2000 + SAMPLE_COUNT,
     last_sync_at: '2026-10-16 12:00:00', sync_error: null
   })
@@ -53,8 +53,8 @@ async function main() {
       uid: 2000 + i,
       message_id: '<sample-' + i + '@example.com>',
       subject: i % 5 === 0 ? '会议邀请 ' + i : '样例邮件 ' + i,
-      from_addr: i % 3 === 0 ? 'teacher@shanghaitech.edu.cn' : 'sender' + i + '@example.com',
-      to_addr: 'suncan2026@shanghaitech.edu.cn',
+      from_addr: i % 3 === 0 ? 'teacher@example.com' : 'sender' + i + '@example.com',
+      to_addr: 'demo.user@example.edu.cn',
       cc: '',
       date_utc: '2026-09-' + day + ' 09:00:00',
       date_raw: 'Tue, ' + i + ' Sep 2026 09:00:00 +0800',
@@ -131,7 +131,7 @@ async function main() {
     const id = emailsDao.findByUid(db, accId, 'INBOX', 2002).id
     emailsDao.upsertEmail(db, {
       account_id: accId, folder: 'INBOX', uid: 2002, message_id: '<sample-2@example.com>',
-      subject: '样例邮件 2', from_addr: 'sender2@example.com', to_addr: 'suncan2026@shanghaitech.edu.cn',
+      subject: '样例邮件 2', from_addr: 'sender2@example.com', to_addr: 'demo.user@example.edu.cn',
       cc: '', date_utc: '2026-09-02 09:00:00', date_raw: '', unread: 1,
       body_text: '正文 2', body_html: '<p>正文 2</p>', attachments_json: '[]', size: 202
     })
@@ -140,7 +140,7 @@ async function main() {
     emailsDao.setEmailUnread(db, id, 1)
     emailsDao.upsertEmail(db, {
       account_id: accId, folder: 'INBOX', uid: 2002, message_id: '<sample-2@example.com>',
-      subject: '样例邮件 2', from_addr: 'sender2@example.com', to_addr: 'suncan2026@shanghaitech.edu.cn',
+      subject: '样例邮件 2', from_addr: 'sender2@example.com', to_addr: 'demo.user@example.edu.cn',
       cc: '', date_utc: '2026-09-02 09:00:00', date_raw: '', unread: 0,
       body_text: '正文 2', body_html: '<p>正文 2</p>', attachments_json: '[]', size: 202
     })

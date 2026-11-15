@@ -223,7 +223,7 @@ if (!gotLock) {
     app.setAppUserModelId(APP_ID)
     const dbPath = userData.dbPath
     startupLog(
-      `打开数据库 ${dbPath}${userData.migrated ? '（已从旧版 InfoAgent 目录搬入）' : ''}`
+      `打开数据库 ${dbPath}${userData.migrated ? '（已从旧版 InfoAgent 目录搬入）' : ''}${userData.seeded ? '（首次启动，已载入随包示例数据）' : ''}`
     )
     const db = openDatabase(dbPath)
     startupLog('数据库就绪，迁移账号密文')

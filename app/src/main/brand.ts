@@ -38,11 +38,20 @@ const LEGACY_DB = 'infoagent.db'
  */
 const PORTABLE_FLAG = '知枢-便携数据.flag'
 
+/**
+ * 随包附带的示例库。别人下载单文件 exe 双击打开时，本机当然没有历史数据，
+ * 不给一份示例就只能看到空界面，那不算「能用的软件」。只在首次启动、
+ * 且既没有现成库也没有旧版库可搬时播种；已有数据一律不碰。
+ */
+const BUNDLED_DEMO_DB = 'demo.db'
+
 export interface UserDataReady {
   dir: string
   dbPath: string
   /** 是否从旧版 InfoAgent 目录搬过一次库 */
   migrated: boolean
+  /** 是否用随包示例库播种了首次启动的空库 */
+  seeded: boolean
 }
 
 /**
@@ -64,18 +73,28 @@ export function prepareUserData(): UserDataReady {
 
   const dbPath = join(dir, DB_FILE)
   let migrated = false
-  // 体验包自带库，不去翻别人机器上的旧版目录——那是另一套数据，混进来只会乱
-  if (!portable && !existsSync(dbPath)) {
-    for (const legacyDir of LEGACY_DIRS) {
-      const legacy = join(dataRoot, legacyDir, LEGACY_DB)
-      if (!existsSync(legacy) || statSync(legacy).size === 0) continue
-      if (copyDatabase(legacy, dbPath)) {
-        migrated = true
-        break
+  let seeded = false
+  if (!existsSync(dbPath)) {
+    // 体验包自带库，不去翻别人机器上的旧版目录——那是另一套数据，混进来只会乱
+    if (!portable) {
+      for (const legacyDir of LEGACY_DIRS) {
+        const legacy = join(dataRoot, legacyDir, LEGACY_DB)
+        if (!existsSync(legacy) || statSync(legacy).size === 0) continue
+        if (copyDatabase(legacy, dbPath)) {
+          migrated = true
+          break
+        }
+      }
+    }
+    // 旧版库也没得搬，就把随包示例库铺上。示例库只有对标数据，没有账号、邮件和密钥。
+    if (!migrated) {
+      const bundled = join(process.resourcesPath || '', 'resources', BUNDLED_DEMO_DB)
+      if (app.isPackaged && existsSync(bundled) && statSync(bundled).size > 0) {
+        seeded = copyDatabase(bundled, dbPath)
       }
     }
   }
-  return { dir, dbPath, migrated }
+  return { dir, dbPath, migrated, seeded }
 }
 
 function copyDatabase(from: string, to: string): boolean {

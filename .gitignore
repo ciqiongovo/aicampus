@@ -50,3 +50,5 @@ output/bench/search-links.json
 output/知枢-体验包/
 output/*.zip
 !output/知枢-示例数据-zhishu.db
+# 随包内置的干净示例库要进仓库，否则构建出来的 exe 首次启动是空界面
+!app/resources/demo.db
