@@ -142,6 +142,28 @@ export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkSe
     service.seedImport(typeof school === 'string' && school.trim() ? school : undefined)
   )
 
+  ipcMain.handle(BENCH_IPC.benchAudit, () => service.audit())
+
+  // 入参来自渲染进程，只能当它是「一串不知道是什么的东西」处理：
+  // 过滤掉非整数，别把 NaN 带进 SQL 参数
+  ipcMain.handle(BENCH_IPC.benchMarkNotActivity, (_e, id: unknown) => {
+    const aid = Number(id)
+    if (!Number.isInteger(aid) || aid <= 0) return false
+    return service.markNotActivity(aid)
+  })
+
+  ipcMain.handle(BENCH_IPC.benchSourceSchool, (_e, id: unknown, school: unknown) => {
+    const sid = Number(id)
+    if (!Number.isInteger(sid) || sid <= 0) return false
+    return service.setSourceSchool(sid, typeof school === 'string' ? school : '')
+  })
+
+  ipcMain.handle(BENCH_IPC.benchPurgeSources, (_e, ids: unknown) =>
+    service.purgeSources(
+      Array.isArray(ids) ? ids.map((x) => Number(x)).filter((n) => Number.isInteger(n) && n > 0) : []
+    )
+  )
+
   ipcMain.handle(BENCH_IPC.benchHomeCompare, (_e, articleId: unknown) =>
     typeof articleId === 'number' ? service.homeCompare(articleId) : []
   )

@@ -25,6 +25,7 @@ import type {
   BenchSchoolInfo,
   BenchSourceCategory,
   BenchSourceInfo,
+  BenchSuspiciousSource,
   BenchStats
 } from '../../../shared/benchmark'
 import { guessSchool } from '../../../shared/benchmark'
@@ -93,6 +94,112 @@ export function setSourceEnabled(db: DatabaseSync, id: number, enabled: boolean)
 /** 删源不删文章：历史推文仍有对标价值，只是不再采新的 */
 export function removeSource(db: DatabaseSync, id: number): void {
   db.prepare('DELETE FROM bench_source WHERE id = ?').run(id)
+}
+
+/**
+ * 改一个公众号的学校归属。
+ *
+ * 传空字符串表示「还是不知道是哪所」，不是删除——把人认出来的号当成垃圾删掉，
+ * 比留着一条归不了的记录糟得多。
+ */
+export function setSourceSchool(db: DatabaseSync, id: number, school: string): boolean {
+  const name = school.trim()
+  const before = db.prepare('SELECT school FROM bench_source WHERE id = ?').get(id) as
+    | { school: string }
+    | undefined
+  if (!before) return false
+  db.prepare('UPDATE bench_source SET school = ? WHERE id = ?').run(name, id)
+  return before.school !== name
+}
+
+/**
+ * 把一篇判为「不是活动」：删掉抽取结果，保留原文。
+ *
+ * 只删 bench_activity 这一行就够——简报、对比、统计都从那张表出发。
+ * 文章本身留着（status 仍是 parsed），用户随时能点开看原文，也能重新抽。
+ */
+export function markNotActivity(db: DatabaseSync, articleId: number): boolean {
+  db.exec('BEGIN')
+  try {
+    db.prepare('DELETE FROM bench_activity WHERE article_id = ?').run(articleId)
+    const info = db.prepare('UPDATE bench_article SET is_activity = 0 WHERE id = ?').run(articleId)
+    db.exec('COMMIT')
+    return Number(info.changes) > 0
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
+}
+
+/**
+ * 找出不属于任何已知学校的源。
+ *
+ * 判定只看一件事：这个号被归到哪个学校。学校空着（搜索时看不出归属），
+ * 或者被归到清单以外（早期没加引号的搜索把「北京科技大学学生会」的稿子
+ * 也带了进来），两种都算。是否真的该删由人决定——「青春SUES」这种名字里
+ * 没有校名的号是正牌学生会，机器判不出来。
+ */
+export function auditSources(db: DatabaseSync, allowedSchools: string[]): BenchSuspiciousSource[] {
+  const rows = db
+    .prepare(
+      `SELECT s.id, s.name, s.school,
+              (SELECT COUNT(*) FROM bench_article a WHERE a.source_id = s.id) AS article_count,
+              (SELECT a.title FROM bench_article a
+                WHERE a.source_id = s.id AND a.title <> ''
+                ORDER BY a.published_at DESC, a.id DESC LIMIT 1) AS sample
+         FROM bench_source s`
+    )
+    .all() as unknown as {
+    id: number
+    name: string
+    school: string
+    article_count: number
+    sample: string | null
+  }[]
+  const allowed = new Set(allowedSchools)
+  return rows
+    .filter((r) => r.article_count > 0 && (!r.school || !allowed.has(r.school)))
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      school: r.school ?? '',
+      articleCount: r.article_count,
+      sample: r.sample ?? ''
+    }))
+    .sort((a, b) => b.articleCount - a.articleCount || a.name.localeCompare(b.name))
+}
+
+/**
+ * 删掉这些源，连同它们名下的文章与活动。
+ *
+ * 活动表虽然有 ON DELETE CASCADE，但那是靠 foreign_keys pragma 生效的，
+ * 而 pragma 是连接级设置、每次打开都要重设——不能拿它当保障，显式删一遍。
+ */
+export function purgeSources(
+  db: DatabaseSync,
+  ids: number[]
+): { articles: number; sources: number } {
+  const clean = ids.filter((n) => Number.isInteger(n) && n > 0)
+  if (!clean.length) return { articles: 0, sources: 0 }
+  const marks = clean.map(() => '?').join(',')
+  db.exec('BEGIN')
+  try {
+    db.prepare(
+      `DELETE FROM bench_activity
+        WHERE article_id IN (SELECT id FROM bench_article WHERE source_id IN (${marks}))`
+    ).run(...clean)
+    const articles = Number(
+      db.prepare(`DELETE FROM bench_article WHERE source_id IN (${marks})`).run(...clean).changes
+    )
+    const sources = Number(
+      db.prepare(`DELETE FROM bench_source WHERE id IN (${marks})`).run(...clean).changes
+    )
+    db.exec('COMMIT')
+    return { articles, sources }
+  } catch (error) {
+    db.exec('ROLLBACK')
+    throw error
+  }
 }
 
 // ---------------- 文章 ----------------

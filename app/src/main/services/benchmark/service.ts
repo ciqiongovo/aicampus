@@ -21,6 +21,7 @@ import type {
   BenchImportResult,
   BenchProspectInfo,
   BenchSchoolInfo,
+  BenchAuditResult,
   BenchSourceCategory,
   BenchSourceInfo,
   BenchStats
@@ -219,6 +220,37 @@ export class BenchmarkService {
   }
 
   /**
+   * 数据体检：挑出归属不明的公众号。
+   *
+   * 不自动清理。机器只知道「这个号没被归到任何一所已知学校」，
+   * 而「华东师大二附中」这类附属中学、以及「青春SUES」这种纯英文简称，
+   * 都可能是正经号。列出来让人看，比替人做决定安全。
+   */
+  audit(): BenchAuditResult {
+    const allowed = this.schoolList().map((s) => s.name)
+    const suspicious = dao.auditSources(this.db, allowed)
+    return {
+      suspicious,
+      articleCount: suspicious.reduce((n, s) => n + s.articleCount, 0)
+    }
+  }
+
+  purgeSources(ids: number[]): { articles: number; sources: number } {
+    return dao.purgeSources(this.db, ids)
+  }
+
+  markNotActivity(articleId: number): boolean {
+    return dao.markNotActivity(this.db, articleId)
+  }
+
+  setSourceSchool(id: number, school: string): boolean {
+    const name = school.trim()
+    // 只认清单里的学校名：随手敲个错别字，这篇文章就再也不会出现在任何学校的筛选里
+    if (name && !this.schoolList().some((s) => s.name === name)) return false
+    return dao.setSourceSchool(this.db, id, name)
+  }
+
+  /**
    * 导入随安装包带来的样本链接。
    *
    * 为什么要有这个：新装一份软件，库是空的。要想看到东西，先得自己去搜链接，
@@ -270,6 +302,10 @@ export class BenchmarkService {
     const result: BenchFetchResult = { fetched: 0, imageOnly: 0, deleted: 0, unreachable: 0, blocked: false }
     let blockedStreak = 0
     try {
+      // 把挂了一阵的「打不开」放回队列再取。
+      // 不做这一步的话，unreachable 就是终态——界面上写着「过一阵会自动重试」，
+      // 实际上永远不会重试，那句提示是假的；「跑完队列」也永远清不掉它们。
+      dao.resetUnreachable(this.db)
       const queue = dao.pendingArticles(this.db, Math.min(Math.max(limit, 1), 200))
       for (const [i, item] of queue.entries()) {
         if (i > 0) await sleep(GAP_MIN_MS + Math.random() * (GAP_MAX_MS - GAP_MIN_MS))

@@ -18,6 +18,7 @@ export * from './zhihu'
 export const IPC = {
   appInfo: 'app:info',
   appOpenExternal: 'app:open-external',
+  appSaveText: 'app:save-text',
   settingsGet: 'settings:get',
   settingsSet: 'settings:set',
   mailProvidersList: 'mail:providers:list',
@@ -97,6 +98,15 @@ export interface AppInfo {
   platform: string
   electron: string
   chrome: string
+}
+
+/** 存文件的结果。canceled 与失败要分开：用户自己取消不该弹红条 */
+export interface SaveTextResult {
+  ok: boolean
+  /** 落盘后的完整路径，ok 为 true 时必有 */
+  path?: string
+  canceled?: boolean
+  message?: string
 }
 
 /** 应用设置（key/value 结构的基础版，模块可扩展各自 schema） */
@@ -554,6 +564,13 @@ export interface CounterRecOpResult {
 export interface RendererApi extends WorkspaceApi, DailyApi, CognitionApi, TodoApi, PanelApi, MaterialApi, ZhihuApi {
   appInfo(): Promise<AppInfo>
   appOpenExternal(url: string): Promise<boolean>
+  /**
+   * 把一段纯文本存成文件，落地位置由系统保存对话框决定。
+   *
+   * 只接受 text，不接受 Buffer/Uint8Array：这条通道是给「导出简报」这类
+   * 用户看得见的内容用的，不给渲染进程留任意二进制写盘的口子。
+   */
+  appSaveText(defaultName: string, content: string): Promise<SaveTextResult>
   settingsGet(): Promise<SettingsView>
   settingsSet(patch: SettingsPatch): Promise<SettingsView>
   mailProvidersList(): Promise<MailProviderPreset[]>

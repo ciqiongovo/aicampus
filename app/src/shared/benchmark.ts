@@ -31,7 +31,12 @@ export const BENCH_IPC = {
   benchDiscover: 'bench:discover',
   benchProspects: 'bench:prospects',
   benchSeedImport: 'bench:seed-import',
-  benchHomeCompare: 'bench:home-compare'
+  benchHomeCompare: 'bench:home-compare',
+  // ---- 数据体检 ----
+  benchAudit: 'bench:audit',
+  benchPurgeSources: 'bench:purge-sources',
+  benchSourceSchool: 'bench:source-school',
+  benchMarkNotActivity: 'bench:mark-not-activity'
 } as const
 
 /**
@@ -284,6 +289,33 @@ export interface BenchExtractResult {
   failed: number
 }
 
+/**
+ * 一个「不属于任何已知学校」的公众号。
+ *
+ * 来源有两种：早期搜索没给账号名加引号时被拆词匹配带进来的别校号，
+ * 以及名字里根本看不出学校的营销号 / 地方号。它们会污染「覆盖 N 所学校」
+ * 这类统计，所以单独列出来让人自己判断要不要清。
+ */
+export interface BenchSuspiciousSource {
+  id: number
+  name: string
+  school: string
+  articleCount: number
+  /**
+   * 最新一篇的标题。
+   *
+   * 「青春SUES」「SIT星光化工」这种号，光看名字没人知道是谁，
+   * 看一眼标题就能认出来（SUES 是上海工程技术大学）。这一列是给人做判断用的。
+   */
+  sample: string
+}
+
+export interface BenchAuditResult {
+  suspicious: BenchSuspiciousSource[]
+  /** 这些源名下的文章总数，用于「有 N 篇会被算错学校」那句提示 */
+  articleCount: number
+}
+
 export interface BenchStats {
   sources: number
   articles: number
@@ -395,6 +427,25 @@ export interface BenchApi {
   benchSeedImport(school?: string): Promise<BenchImportResult>
   /** 本校同类活动：给某个活动找本校的对照条目 */
   benchHomeCompare(articleId: number): Promise<BenchArticleDetail[]>
+  /**
+   * 列出不属于任何已知学校的源。
+   *
+   * 这个不是自动清理：名字里没有校名的号未必是垃圾（「青春SUES」就是上海工程技术大学），
+   * 机器判不准，人一眼能看出来，所以只列出来、由人决定。
+   */
+  benchAudit(): Promise<BenchAuditResult>
+  /** 把这些源连同它们名下文章一起删掉 */
+  benchPurgeSources(ids: number[]): Promise<{ articles: number; sources: number }>
+  /** 改某个公众号的学校归属（把「青春SUES」认回上海工程技术大学这种事） */
+  benchSourceSchool(id: number, school: string): Promise<boolean>
+  /**
+   * 人工判定「这篇不是活动」。
+   *
+   * 规则抽取靠词表，遇到「院长一行访问某校」这种新闻稿也会当活动抽出来。
+   * 与其让这种条目混进简报，不如给一个明确的否决按钮——删掉的是抽取结果，
+   * 原文和链接都还在库里。
+   */
+  benchMarkNotActivity(articleId: number): Promise<boolean>
   /**
    * 订阅「按学校查找」的进度。返回取消订阅的函数。
    *

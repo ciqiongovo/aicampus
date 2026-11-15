@@ -6,6 +6,7 @@ import {
   Drawer,
   Empty,
   Input,
+  Modal,
   Progress,
   Select,
   Space,
@@ -20,6 +21,7 @@ import {
   CloudDownloadOutlined,
   FileTextOutlined,
   InboxOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   ReloadOutlined,
   SearchOutlined,
@@ -34,6 +36,7 @@ import type {
   BenchArticleFilter,
   BenchArticleInfo,
   BenchArticleStatus,
+  BenchAuditResult,
   BenchBrief,
   BenchProgressEvent,
   BenchProspectInfo,
@@ -89,7 +92,7 @@ function daysAgo(days: number): string {
 }
 
 function BenchmarkPage(): JSX.Element {
-  const { message } = AntApp.useApp()
+  const { message, modal } = AntApp.useApp()
 
   const [stats, setStats] = useState<BenchStats | null>(null)
   const [rows, setRows] = useState<BenchArticleInfo[]>([])
@@ -114,10 +117,26 @@ function BenchmarkPage(): JSX.Element {
   const [newSchool, setNewSchool] = useState('')
   const [newCategory, setNewCategory] = useState<BenchSourceCategory>('student_union')
 
+  /** 数据体检结果：只在打开「公众号源」抽屉时拉一次，平时不占内存 */
+  const [audit, setAudit] = useState<BenchAuditResult | null>(null)
+  const [purgeOpen, setPurgeOpen] = useState(false)
+  const [purgePicked, setPurgePicked] = useState<number[]>([])
+
   /** 账号清单抽屉：看某所学校打算找哪些号、哪些找着了 */
   const [accountsSchool, setAccountsSchool] = useState<BenchSchoolInfo | null>(null)
   const [prospects, setProspects] = useState<BenchProspectInfo[]>([])
   const [extraAccount, setExtraAccount] = useState('')
+
+  /**
+   * 搜完要不要接着采正文、抽字段。
+   *
+   * 默认开。第一次用的人点「找文章」之后，界面会回到安静状态，
+   * 他还得自己发现下面第 2 步要再点两次——这个坎多数人过不去。
+   * 关掉它则保留「只搜不采」的用法：搜索有配额，想先囤链接时有用。
+   */
+  const [autoChain, setAutoChain] = useState(
+    () => window.localStorage.getItem('zhishu.bench.autoChain') !== '0'
+  )
 
   const [school, setSchool] = useState('')
   const [kind, setKind] = useState('')
@@ -127,6 +146,8 @@ function BenchmarkPage(): JSX.Element {
   const [range, setRange] = useState<'all' | 'half' | 'year'>('year')
 
   const homeSchool = useMemo(() => schoolList.find((s) => s.isHome) ?? null, [schoolList])
+  /** 源表里改归属用的下拉项：只给清单里的全称，别让人敲错字 */
+  const schoolNames = useMemo(() => schoolList.map((s) => s.name), [schoolList])
   const withData = useMemo(() => schoolList.filter((s) => s.articleCount > 0), [schoolList])
   /**
    * 默认只摆出「已经采到东西的」和本校。
@@ -175,6 +196,11 @@ function BenchmarkPage(): JSX.Element {
     void load()
   }, [load])
 
+  useEffect(() => {
+    if (!sourcesOpen) return
+    void window.api.benchAudit().then(setAudit)
+  }, [sourcesOpen])
+
   // 查找进度由主进程推过来：一次查找要跑几十秒，没有反馈用户会以为卡死
   useEffect(() => {
     return window.api.benchOnProgress((e) => setProgress(e))
@@ -202,6 +228,48 @@ function BenchmarkPage(): JSX.Element {
    * 这一步慢是常态：每个账号之间要停三五秒，不然搜索引擎立刻要求验证码。
    * 所以按钮上直接写「约 1 分钟」，而不是让人对着转圈猜。
    */
+  /**
+   * 把「待采集」和「待抽取」两个队列往前推，直到空了或撞上验证。
+   *
+   * 为什么要有上限：库里的积压可能是三百条，一个点下去永远不结束的按钮
+   * 比没这个按钮更糟。四轮、每轮十五篇，单次最多推六十篇，
+   * 推不完会在提示里说还剩多少，让人再点一次。
+   */
+  const drainQueue = async (): Promise<{
+    fetched: number
+    activities: number
+    blocked: boolean
+    rest: number
+  }> => {
+    let fetched = 0
+    let activities = 0
+    let blocked = false
+    for (let round = 0; round < 4; round++) {
+      const s = await window.api.benchStats()
+      // unreachable 也要算活：它们在主进程里会被放回队列重试，
+      // 如果只看 pending，剩下一条打不开的死链就永远轮不到重试
+      if (s.pending <= 0 && s.unreachable <= 0) break
+      const r = await window.api.benchFetch(15)
+      fetched += r.fetched
+      if (r.blocked) {
+        blocked = true
+        break
+      }
+      // 本来就没有待采的，这一轮也没采到东西 —— 那是在重试旧的失败项，
+      // 再跑第二轮只会拿同一条链再撞一次墙
+      if (s.pending <= 0 && r.fetched === 0) break
+    }
+    // 被拦了就别接着抽：抽的是已经采到的正文，跟搜索无关，但这时候
+    // 整条链路都该停下来让人歇一会儿，免得连着两条红字
+    for (let round = 0; round < 4 && !blocked; round++) {
+      if ((await window.api.benchStats()).unparsed <= 0) break
+      const r = await window.api.benchExtract(15)
+      activities += r.activities
+    }
+    const after = await window.api.benchStats()
+    return { fetched, activities, blocked, rest: after.pending + after.unparsed }
+  }
+
   const discover = (target: BenchSchoolInfo): void => {
     if (busy) {
       message.info('上一个动作还没跑完，等它结束再点')
@@ -219,7 +287,39 @@ function BenchmarkPage(): JSX.Element {
         message.info(r.message)
         return ''
       }
-      return `${target.name}：${r.message}`
+      if (!autoChain) return `${target.name}：${r.message}`
+
+      const d = await drainQueue()
+      if (d.blocked) {
+        message.warning('采集中途撞上微信验证，先停下。过 20–30 分钟再点「跑完队列」')
+      }
+      return [
+        `${target.name}：${r.message}`,
+        d.fetched ? `采到正文 ${d.fetched} 篇` : '',
+        d.activities ? `抽出活动 ${d.activities} 场` : '',
+        d.rest > 0 ? `还剩 ${d.rest} 篇，再点一次「跑完队列」` : '已全部入库'
+      ]
+        .filter(Boolean)
+        .join('，')
+    })
+  }
+
+  const doDrain = (): void => {
+    void run('drain', async () => {
+      const d = await drainQueue()
+      if (d.blocked) {
+        message.warning('采集又撞上验证了，歇 20–30 分钟再来')
+      }
+      if (!d.fetched && !d.activities) {
+        return d.rest > 0 ? `队列里还剩 ${d.rest} 篇，这次一篇没动` : '队列已经是空的'
+      }
+      return [
+        d.fetched ? `采到正文 ${d.fetched} 篇` : '',
+        d.activities ? `抽出活动 ${d.activities} 场` : '',
+        d.rest > 0 ? `还剩 ${d.rest} 篇，再点一次` : '队列已清空'
+      ]
+        .filter(Boolean)
+        .join('，')
     })
   }
 
@@ -317,6 +417,16 @@ function BenchmarkPage(): JSX.Element {
     })
   }
 
+  const saveBrief = (): void => {
+    if (!brief) return
+    void window.api.appSaveText(`${brief.title || '简报'}.md`, brief.markdown).then((r) => {
+      // 用户自己按了取消，不该弹红条
+      if (r.canceled) return
+      if (r.ok) message.success(`已保存到 ${r.path}`)
+      else message.error(r.message || '保存失败')
+    })
+  }
+
   const copyBrief = (): void => {
     if (!brief) return
     void navigator.clipboard
@@ -342,6 +452,15 @@ function BenchmarkPage(): JSX.Element {
     })
   }
 
+  const setSourceSchool = (id: number, name: string): void => {
+    void run('source', async () => {
+      const changed = await window.api.benchSourceSchool(id, name)
+      if (!changed) return ''
+      setAudit(await window.api.benchAudit())
+      return name ? `已归到「${name}」` : '已清空归属'
+    })
+  }
+
   const toggleSource = (id: number, enabled: boolean): void => {
     void run('source', async () => {
       await window.api.benchSourceToggle(id, enabled)
@@ -353,6 +472,58 @@ function BenchmarkPage(): JSX.Element {
     void run('source', async () => {
       await window.api.benchSourceRemove(id)
       return `已移除「${name}」，它的历史文章留在库里`
+    })
+  }
+
+  /**
+   * 打开清理弹窗。
+   *
+   * 默认全选，让人「取消勾选要留的」而不是「勾选要删的」——这批号里绝大多数
+   * 确实是跑偏带进来的，一个个点 31 下没人受得了；而真要留下某个正牌号，
+   * 取消一个勾比在 31 行里找它还容易。
+   */
+  /**
+   * 人工否决一条抽取结果。
+   *
+   * 规则抽取会把「院长一行访问某校」这类新闻稿当成沙龙分享。改词表永远追不上，
+   * 所以给一个按钮：删掉这条活动记录，原文留着，简报不再计入。
+   */
+  const markNotActivity = (d: BenchArticleDetail): void => {
+    modal.confirm({
+      title: '这篇不是活动？',
+      content: (
+        <div>
+          <p>会删掉这条记录的类型、时间、地点等字段，简报不再计入它。原文和链接都还在。</p>
+          <p className="bench-muted">{d.title || d.url}</p>
+        </div>
+      ),
+      okText: '确认不是',
+      cancelText: '再想想',
+      onOk: () =>
+        run('notactivity', async () => {
+          const ok = await window.api.benchMarkNotActivity(d.id)
+          setDetail(null)
+          return ok ? '已剔除，简报不再计入这一条' : '没改到，可能这篇本来就没有活动记录'
+        })
+    })
+  }
+
+  const openPurge = (): void => {
+    setPurgePicked((audit?.suspicious ?? []).map((x) => x.id))
+    setPurgeOpen(true)
+  }
+
+  const doPurge = (): void => {
+    const rows = (audit?.suspicious ?? []).filter((x) => purgePicked.includes(x.id))
+    if (!rows.length) {
+      message.info('没勾任何号，什么都不会删')
+      return
+    }
+    void run('purge', async () => {
+      const r = await window.api.benchPurgeSources(rows.map((x) => x.id))
+      setAudit(await window.api.benchAudit())
+      setPurgeOpen(false)
+      return `已删 ${r.sources} 个号、${r.articles} 篇文章`
     })
   }
 
@@ -444,7 +615,7 @@ function BenchmarkPage(): JSX.Element {
     if (!stats) return ''
     if (stats.pending > 0) return `队列里还有 ${stats.pending} 篇没采正文`
     if (stats.unparsed > 0) return `${stats.unparsed} 篇已采到正文，等抽字段`
-    if (stats.unreachable > 0) return `${stats.unreachable} 篇打不开，过一阵会自动重试`
+    if (stats.unreachable > 0) return `${stats.unreachable} 篇打不开，半小时后再跑一次会重试`
     if (stats.articles > 0) {
       return stats.lastFetchAt ? `都处理完了，上次采集 ${shortDate(stats.lastFetchAt)}` : '都处理完了'
     }
@@ -511,8 +682,9 @@ function BenchmarkPage(): JSX.Element {
           <span className="bench-step-no">1</span>
           选学校，让软件自己去公众号里找文章
           <span className="bench-step-hint">
-            点某个学校的「找文章」，它就会按「校名+学生会 / 团委」这类常见命名去搜，
-            每个学校几十秒。搜的是搜索引擎收录过的公开推文，不是这个号的全部历史。
+            点某个学校的「一键采集」，它按「校名 + 学生会 / 团委」这类常见命名去搜，
+            搜到的链接顺手采正文、抽字段。只搜不采就把下面的开关关掉。
+            搜的是搜索引擎收录过的公开推文，不是这个号的全部历史。
           </span>
         </div>
 
@@ -549,7 +721,7 @@ function BenchmarkPage(): JSX.Element {
                   disabled={!!busy && discoveringSchool !== s.name}
                   onClick={() => discover(s)}
                 >
-                  找文章
+                  {autoChain ? '一键采集' : '找文章'}
                 </Button>
                 <Button size="small" type="text" onClick={() => openAccounts(s)}>
                   账号
@@ -580,6 +752,19 @@ function BenchmarkPage(): JSX.Element {
             <Button size="small" icon={<InboxOutlined />} loading={busy === 'seed'} onClick={importSeeds}>
               导入内置样本
             </Button>
+          </Tooltip>
+          <Tooltip title="打开：搜到链接后接着采正文、抽字段，一次点完走完三步。关掉：只把链接收进来，稍后自己决定采哪些">
+            <Space size={4} className="bench-chain">
+              <Switch
+                size="small"
+                checked={autoChain}
+                onChange={(v) => {
+                  setAutoChain(v)
+                  window.localStorage.setItem('zhishu.bench.autoChain', v ? '1' : '0')
+                }}
+              />
+              <span>搜完顺手采正文、抽字段</span>
+            </Space>
           </Tooltip>
           <span className="bench-step-hint">
             不想按学校搜也行：下面「导入链接」可以直接粘公众号文章地址。
@@ -616,12 +801,22 @@ function BenchmarkPage(): JSX.Element {
           >
             抽字段{stats?.unparsed ? `（${stats.unparsed}）` : ''}
           </Button>
+          <Tooltip title="把待采集、待抽取的都推完，一次最多 60 篇；撞上验证会自动停">
+            <Button
+              icon={<PlayCircleOutlined />}
+              loading={busy === 'drain'}
+              disabled={!!busy && busy !== 'drain'}
+              onClick={doDrain}
+            >
+              跑完队列
+            </Button>
+          </Tooltip>
           <Button onClick={() => void load()} icon={<ReloadOutlined />} disabled={!!busy}>
             刷新
           </Button>
           <span className="bench-queue">{queueNote}</span>
         </div>
-        {busy === 'fetch' || busy === 'extract' ? progressBar : null}
+        {busy === 'fetch' || busy === 'extract' || busy === 'drain' ? progressBar : null}
       </section>
 
       {/* ---------- 第三步：看结果 ---------- */}
@@ -749,9 +944,16 @@ function BenchmarkPage(): JSX.Element {
         title={detail?.title || '文章详情'}
         extra={
           detail ? (
-            <Button size="small" onClick={() => void window.api.appOpenExternal(detail.url)}>
-              打开原文
-            </Button>
+            <Space>
+              {detail.activity ? (
+                <Button size="small" danger onClick={() => markNotActivity(detail)}>
+                  不是活动
+                </Button>
+              ) : null}
+              <Button size="small" onClick={() => void window.api.appOpenExternal(detail.url)}>
+                打开原文
+              </Button>
+            </Space>
           ) : null
         }
       >
@@ -847,6 +1049,39 @@ function BenchmarkPage(): JSX.Element {
         ) : null}
       </Drawer>
 
+      {/* ---------- 清理归属不明的号 ---------- */}
+      <Modal
+        open={purgeOpen}
+        title="清理归属不明的号"
+        width={720}
+        onCancel={() => setPurgeOpen(false)}
+        onOk={doPurge}
+        okText={`删掉选中的 ${purgePicked.length} 个`}
+        okButtonProps={{ danger: true, disabled: !purgePicked.length }}
+        cancelText="先留着"
+      >
+        <Typography.Paragraph type="secondary" style={{ fontSize: 12 }}>
+          下面默认全选。看着是正经号的（附属中学、英文简称、你认识的号）取消勾选再删。
+          删掉的是这些号名下的文章和已经抽好的字段，不能恢复。
+        </Typography.Paragraph>
+        <Table
+          size="small"
+          rowKey="id"
+          pagination={false}
+          scroll={{ y: 320 }}
+          dataSource={audit?.suspicious ?? []}
+          rowSelection={{
+            selectedRowKeys: purgePicked,
+            onChange: (keys) => setPurgePicked(keys as number[])
+          }}
+          columns={[
+            { title: '公众号', dataIndex: 'name' },
+            { title: '归属', dataIndex: 'school', width: 150, render: (v: string) => v || '未分学校' },
+            { title: '文章', dataIndex: 'articleCount', width: 70 }
+          ]}
+        />
+      </Modal>
+
       {/* ---------- 简报 ---------- */}
       <Drawer
         open={!!brief}
@@ -855,9 +1090,14 @@ function BenchmarkPage(): JSX.Element {
         title={brief?.title ?? '简报'}
         extra={
           brief ? (
-            <Button type="primary" size="small" onClick={copyBrief}>
-              复制全文
-            </Button>
+            <Space>
+              <Button size="small" onClick={saveBrief}>
+                存成文件
+              </Button>
+              <Button type="primary" size="small" onClick={copyBrief}>
+                复制全文
+              </Button>
+            </Space>
           ) : null
         }
       >
@@ -963,6 +1203,45 @@ function BenchmarkPage(): JSX.Element {
           这里列的是已经确认存在的公众号。名单本身不影响采集——采集的起点是链接——
           但它决定「这一篇算哪个学校的」，简报和对比都按这个分组。
         </Typography.Paragraph>
+
+        {audit && audit.suspicious.length ? (
+          <Alert
+            type="warning"
+            showIcon
+            className="bench-audit"
+            message={
+              <span>
+                {audit.suspicious.length} 个号不属于上海任何一所高校，名下 {audit.articleCount} 篇文章
+              </span>
+            }
+            action={
+              <Button size="small" danger onClick={openPurge}>
+                挑着清理
+              </Button>
+            }
+            description={
+              <div>
+                <div className="bench-muted">
+                  多半是早期搜索没给账号名加引号、被拆词匹配带进来的别校稿子和营销号，
+                  会让简报里的「覆盖几所学校」虚高。看着是正经号的（附属中学、英文简称）就留着。
+                </div>
+                <div className="bench-audit-list">
+                  {audit.suspicious.map((x) => (
+                    <div key={x.id} className="bench-audit-row">
+                      <div className="bench-audit-main">
+                        <span className="bench-audit-name">{x.name}</span>
+                        {x.sample ? <span className="bench-audit-sample">{x.sample}</span> : null}
+                      </div>
+                      <span className="bench-muted">
+                        {x.school || '未分学校'} · {x.articleCount} 篇
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            }
+          />
+        ) : null}
         <Space wrap style={{ marginBottom: 12 }}>
           <Input
             style={{ width: 200 }}
@@ -998,7 +1277,26 @@ function BenchmarkPage(): JSX.Element {
           dataSource={sources}
           locale={{ emptyText: '还没有源。采集完成后会自动按公众号名建源，也可以在上面手动加。' }}
           columns={[
-            { title: '学校', dataIndex: 'school', width: 130, render: (v: string) => v || '未填' },
+            {
+              title: '学校',
+              dataIndex: 'school',
+              width: 168,
+              // 这一列可改：号名里没有校名的（青春SUES、SIT星光化工）只能人工认，
+              // 认出来就该归位，而不是被当成垃圾删掉
+              render: (v: string, row) => (
+                <Select
+                  size="small"
+                  bordered={false}
+                  style={{ width: 156 }}
+                  placeholder="未分学校"
+                  allowClear
+                  showSearch
+                  value={v || undefined}
+                  onChange={(next) => setSourceSchool(row.id, next ?? '')}
+                  options={schoolNames.map((n) => ({ value: n, label: n }))}
+                />
+              )
+            },
             { title: '公众号', dataIndex: 'name' },
             {
               title: '类型',

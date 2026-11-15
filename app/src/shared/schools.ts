@@ -77,6 +77,7 @@ export const SHANGHAI_SCHOOLS: SchoolSeed[] = [
     shortName: '立信',
     aliases: ['上海立信会计金融学院', '立信会计', '立信']
   },
+  { name: '华东政法大学', shortName: '华政', aliases: ['华东政法大学', '华东政法', '华政'] },
   { name: '上海政法学院', shortName: '上政', aliases: ['上海政法学院', '上政'] },
   { name: '上海体育大学', shortName: '上体', aliases: ['上海体育大学', '上海体育学院', '上体'] },
   { name: HOME_SCHOOL, shortName: '上科大', aliases: ['上海科技大学', '上科大'] },

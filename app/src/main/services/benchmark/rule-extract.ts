@@ -58,6 +58,21 @@ const NOT_ACTIVITY = [
   '成绩查询', '四六级', '选课通知', '考试安排', '党课', '理论学习', '转发'
 ]
 
+/**
+ * 新闻稿特征词（只看标题）。
+ *
+ * 判活动靠的是「标题里有没有活动类型词」，而「我院院长一行访问某校」这类稿子
+ * 正文里常常顺带写了「座谈会」「交流会」，于是被抽成一场沙龙分享。
+ * 这类条目进了简报，读者会以为对方学校真的办了这个活动。
+ *
+ * 只收几乎不会出现在活动预告里的词：标题带「一行访问」「述职」「喜报」的，
+ * 基本都是事后报道而不是活动本身。
+ */
+const NEWS_LIKE = [
+  '风采展示', '述职', '工作总结', '喜报', '荣获', '获奖',
+  '候选人', '一行访问', '走访', '洽谈', '签约', '揭牌', '获批', '名单'
+]
+
 const SECOND_NOTICE = [
   { words: ['改期', '延期', '时间调整', '推迟'], kind: 'reschedule' as const },
   { words: ['地点变更', '场地变更', '更换地点', '改至'], kind: 'venue_change' as const },
@@ -406,6 +421,8 @@ export function extractByRules(input: {
   }
 
   if (NOT_ACTIVITY.some((w) => input.title.includes(w))) return empty
+  // 新闻稿比「不是活动」更隐蔽：它有类型词、有时间地点，只是它不是一场活动
+  if (NEWS_LIKE.some((w) => input.title.includes(w))) return empty
 
   const { kind, confidence } = pickKind(input.title, input.body)
   // 标题里没类型词、正文也没有，就不要硬凑成活动

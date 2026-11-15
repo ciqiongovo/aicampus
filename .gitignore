@@ -19,6 +19,8 @@ release/
 out/
 build/
 out-dist/
+# 打包时换个输出目录躲开 safe-delete（旧目录删不掉时用），别让 100 MB 的 exe 进仓库
+out-dist*/
 .tmp/
 __pycache__/
 *.pyc
