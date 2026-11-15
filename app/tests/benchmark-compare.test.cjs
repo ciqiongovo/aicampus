@@ -4,7 +4,7 @@
 // 再运行：node tests/benchmark-compare.test.cjs
 const assert = require('node:assert/strict')
 
-const { parseScale, bucketKind, bucketPromo, leadDays, buildCompare } = require(
+const { parseScale, bucketKind, bucketPromo, bucketVenue, bucketJoin, leadDays, buildCompare } = require(
   '../.test-out/main/services/benchmark/compare.js'
 )
 const { composeBrief } = require('../.test-out/main/services/benchmark/brief.js')
@@ -40,6 +40,7 @@ function item(patch) {
     location: patch.location ?? '',
     orgForm: patch.orgForm ?? '',
     audience: patch.audience ?? '',
+    joinMethod: patch.joinMethod ?? '',
     coOrganizer: patch.coOrganizer ?? '',
     duration: patch.duration ?? '',
     scale: patch.scale ?? '',
@@ -339,6 +340,124 @@ run('类型分散时不说样本构成', () => {
   assert.ok(!c.insights.some((x) => x.startsWith('样本构成')))
 })
 
+run('写了人数的场次按全部条目数，不只看进对比表的学校', () => {
+  // 上海政法学院只有 1 场，不进对比表；但它那一场写了人数，不能算成 0
+  const c = buildCompare([
+    item({ school: '复旦大学', kind: '迎新晚会', startAt: '2025-09-01' }),
+    item({ school: '复旦大学', kind: '讲座', startAt: '2025-09-02' }),
+    item({ school: '同济大学', kind: '迎新晚会', startAt: '2025-09-03' }),
+    item({ school: '同济大学', kind: '讲座', startAt: '2025-09-04' }),
+    item({ school: '上海政法学院', kind: '迎新晚会', startAt: '2025-09-05', scale: '500 人' })
+  ])
+  const line = c.insights.find((x) => x.startsWith('规模：'))
+  assert.ok(line, '应该有一条规模结论')
+  assert.match(line, /5 场活动里只有 1 场/, line)
+})
+
+console.log('\n== 同类活动（同一件事，各校怎么办） ==')
+
+// 三所学校各一场迎新晚会；复旦那场发了预告和回顾两篇，只能算一场
+const topicItems = [
+  item({
+    id: 101,
+    school: '上海科技大学',
+    isHome: true,
+    kind: '2025 级迎新晚会',
+    startAt: '2025-09-05 19:00',
+    weekNo: 2,
+    location: '报告厅',
+    joinMethod: '线上抢票',
+    publishedAt: '2025-08-28 10:00',
+    coOrganizer: '校团委',
+    highlights: ['无人机表演']
+  }),
+  item({
+    id: 102,
+    school: '复旦大学',
+    kind: '迎新晚会',
+    startAt: '2025-09-12 19:00',
+    weekNo: 3,
+    location: '东区体育馆',
+    joinMethod: '扫码加入咨询群',
+    publishedAt: '2025-09-01 10:00'
+  }),
+  // 同一场活动的回顾稿：日期相同、信息更少，不该单独占一行
+  item({
+    id: 103,
+    school: '复旦大学',
+    kind: '迎新晚会回顾',
+    startAt: '2025-09-12 19:00',
+    location: '东区体育馆',
+    publishedAt: '2025-09-13 09:00'
+  }),
+  item({
+    id: 104,
+    school: '上海大学',
+    kind: '迎新文艺晚会',
+    startAt: '2025-09-12 18:30',
+    weekNo: 3,
+    location: '学生活动中心多功能厅',
+    joinMethod: '到梦空间报名',
+    publishedAt: '2025-09-09 10:00'
+  }),
+  // 同一所学校的两场球赛：只有一所，不构成对照
+  item({ id: 105, school: '同济大学', kind: '篮球赛', startAt: '2025-10-01 15:00' }),
+  item({ id: 106, school: '同济大学', kind: '足球赛', startAt: '2025-10-08 15:00' })
+]
+
+const topicCmp = buildCompare(topicItems)
+const topic = topicCmp.topics.find((x) => x.kind === '迎新与毕业')
+
+run('类型先归一，再按类型聚合', () => {
+  assert.ok(topic, '「2025 级迎新晚会」应该归到迎新与毕业')
+  assert.equal(topic.schools, 3)
+})
+
+run('同校同日多篇推文合成一场', () => {
+  // 复旦发了预告和回顾两篇，日期都是 9-12
+  assert.equal(topic.rows.length, 3)
+  const fudan = topic.rows.filter((r) => r.school === '复旦大学')
+  assert.equal(fudan.length, 1)
+  // 留下的是信息更全的那条（有参与方式），不是后发的回顾
+  assert.equal(fudan[0].joinMethod, '扫码加入咨询群')
+})
+
+run('本校排第一行', () => {
+  assert.equal(topic.rows[0].school, '上海科技大学')
+  assert.equal(topic.rows[0].isHome, true)
+})
+
+run('只有一所学校的类型不进对照', () => {
+  assert.ok(!topicCmp.topics.some((t) => t.kind === '体育与健身'))
+})
+
+run('场地与参与方式都归一成类别', () => {
+  const venues = topic.venues.map((v) => v.label)
+  assert.ok(venues.includes('礼堂与剧场'), venues.join(','))
+  assert.ok(venues.includes('体育场馆'))
+  assert.ok(venues.includes('活动中心'))
+  const joins = topic.joins.map((v) => v.label)
+  assert.ok(joins.includes('抢票'), joins.join(','))
+  assert.ok(joins.includes('报名'))
+  assert.ok(joins.includes('扫码进群'), joins.join(','))
+})
+
+run('小结句写得出数字，且每句都能倒推', () => {
+  assert.match(topic.note, /3 所学校共 3 场/)
+  assert.match(topic.note, /第 3 周/)
+  // 8 / 11 / 3 天的中位数是 8
+  assert.match(topic.note, /提前 8 天/)
+})
+
+run('合办占比按行算', () => {
+  // 只有上科大写了协办单位
+  assert.ok(Math.abs(topic.coHostRate - 1 / 3) < 1e-6)
+})
+
+run('结论里出现同类活动那一条', () => {
+  assert.ok(topicCmp.insights.some((x) => x.startsWith('同一件事：')), topicCmp.insights.join('\n'))
+})
+
 console.log('\n== 简报与报告 ==')
 
 const brief = composeBrief(items, '示例', new Date('2025-10-01T10:00:00'))
@@ -350,6 +469,43 @@ run('简报正文里，结论排在逐条明细之前', () => {
 
 run('简报不再重复两张概览表', () => {
   assert.equal(brief.markdown.match(/各校一览/g).length, 1)
+})
+
+run('简报与报告里都有「同一件事，各校怎么办」', () => {
+  assert.ok(brief.markdown.includes('同一件事，各校怎么办'), brief.markdown)
+  const html = buildReportHtml(brief)
+  assert.ok(html.includes('同一件事，各校怎么办'))
+})
+
+run('简报里的表格不会被竖线撕开', () => {
+  const tricky = composeBrief(
+    [
+      item({ school: '复旦大学', kind: '迎新晚会', startAt: '2025-09-12', location: '礼堂|主厅', highlights: ['A|B'] }),
+      item({ school: '上海大学', kind: '迎新晚会', startAt: '2025-09-13' })
+    ],
+    '示例',
+    new Date('2025-10-01T10:00:00')
+  )
+  const rows = tricky.markdown.split('\n').filter((l) => l.startsWith('|'))
+  assert.ok(rows.length >= 3, '应该出了同类活动那张表')
+  // 表里每行的竖线数必须一致：少一个就说明单元格里的竖线把表撕开了
+  const counts = new Set(rows.map((line) => (line.match(/\|/g) || []).length))
+  assert.equal(counts.size, 1, [...counts].join(','))
+  assert.ok([...counts][0] >= 3, '至少要有学校和时间两列')
+})
+
+run('列随数据走：整列都没有数据的那一项不出现', () => {
+  const noVenue = composeBrief(
+    [
+      item({ school: '复旦大学', kind: '迎新晚会', startAt: '2025-09-12' }),
+      item({ school: '上海大学', kind: '迎新晚会', startAt: '2025-09-13' })
+    ],
+    '示例',
+    new Date('2025-10-01T10:00:00')
+  )
+  assert.ok(noVenue.markdown.includes('同一件事，各校怎么办'))
+  assert.ok(!noVenue.markdown.includes('| 场地 |'), '没人写场地时不该摆这一列')
+  assert.ok(!noVenue.markdown.includes('| 特色 |'))
 })
 
 run('HTML 报告自包含：不引外部资源，转义用户内容', () => {

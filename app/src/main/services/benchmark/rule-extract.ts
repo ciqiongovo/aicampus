@@ -200,6 +200,19 @@ function resolveYear(month: number, day: number, publishedAt?: string | null): n
  * 全文都找不到明确日期时返回 null。宁可空着——空着用户知道要去原文看，
  * 填错了他会当成真的。
  */
+/**
+ * 拼「日期 时:分」。
+ *
+ * 「24:00」在中文通知里是「当天结束前」的意思（「3 月 8 日 24:00 截止」），
+ * 不是合法的时刻。直接写进库里，排序和算天数时都会出岔子，
+ * 所以折成 23:59；超过 24 点的写法（26:00 这种）丢掉时刻只留日期。
+ */
+function atTime(date: string, hour: number, minute: number): string {
+  if (hour > 24) return date
+  if (hour === 24) return `${date} 23:59:00`
+  return `${date} ${pad(hour)}:${pad(minute)}:00`
+}
+
 function findStartDate(text: string, publishedAt?: string | null): string | null {
   const candidates: { at: string; index: number; hasTime: boolean; explicit: boolean }[] = []
 
@@ -213,7 +226,7 @@ function findStartDate(text: string, publishedAt?: string | null): string | null
       let hour = lm[4] ? Number(lm[4]) : 0
       if (lm[3] === '下午' || lm[3] === '晚上') hour = hour < 12 ? hour + 12 : hour
       const date = `${resolveYear(month, day, publishedAt)}-${pad(month)}-${pad(day)}`
-      return lm[4] ? `${date} ${pad(hour)}:${lm[5]}:00` : date
+      return lm[4] ? atTime(date, hour, Number(lm[5])) : date
     }
   }
 
@@ -226,8 +239,9 @@ function findStartDate(text: string, publishedAt?: string | null): string | null
     let hour = m[4] ? Number(m[4]) : 0
     if (m[3] === '下午' || m[3] === '晚上') hour = hour < 12 ? hour + 12 : hour
     const hasTime = !!m[4]
+    const date = `${resolveYear(month, day, publishedAt)}-${pad(month)}-${pad(day)}`
     candidates.push({
-      at: `${resolveYear(month, day, publishedAt)}-${pad(month)}-${pad(day)}${hasTime ? ` ${pad(hour)}:${m[5]}:00` : ''}`,
+      at: hasTime ? atTime(date, hour, Number(m[5])) : date,
       index: m.index,
       hasTime,
       explicit: false

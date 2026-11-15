@@ -741,3 +741,163 @@
   color: var(--text-3);
   font-weight: 400;
 }
+
+
+/* ---------- 同类活动：同一件事，各校怎么办 ---------- */
+
+.bench-cmp-topics {
+  margin-top: 26px;
+}
+
+.bench-topic-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+}
+
+.bench-topic-tab {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.6;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.bench-topic-tab:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.bench-topic-tab i {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.bench-topic-tab.is-on {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--line));
+  color: var(--text);
+}
+
+.bench-topic-tab.is-on i {
+  color: color-mix(in srgb, var(--accent) 70%, var(--text-2));
+}
+
+.bench-topic-sum {
+  margin-bottom: 12px;
+  padding: 10px 13px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.bench-topic-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--text);
+}
+
+.bench-topic-dist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 6px;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.bench-topic-cards {
+  display: grid;
+  gap: 8px;
+}
+
+.bench-topic-card {
+  padding: 10px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+/* 本校那张卡要一眼认出来，否则读到第三张才想起哪张是自己的 */
+.bench-topic-card.is-home {
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+}
+
+.bench-topic-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.bench-topic-school {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bench-topic-when {
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.bench-topic-title {
+  margin: 4px 0 6px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bench-topic-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 15px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.bench-topic-facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bench-topic-hl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.bench-topic-hl span {
+  padding: 1px 7px;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  background: var(--surface-2);
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+/* 「还有 N 场，展开」：贴着卡片列表，不要占满一行 */
+.bench-topic-more {
+  margin-top: 6px;
+  padding: 0;
+  height: auto;
+  font-size: 12.5px;
+}

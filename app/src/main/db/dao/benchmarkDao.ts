@@ -713,7 +713,7 @@ export function briefRows(db: DatabaseSync, filter: BenchArticleFilter): BenchBr
       `SELECT a.id, COALESCE(s.school, '') AS school, COALESCE(s.name, '') AS source_name,
               a.title, a.url, a.published_at,
               act.kind, act.week_no, act.start_at, act.location, act.org_form, act.audience,
-              act.co_organizer, act.duration, act.scale,
+              act.join_method, act.co_organizer, act.duration, act.scale,
               act.agenda, act.highlights, act.promo_channels,
               act.migration_fit, act.migration_note, act.confidence,
               COALESCE(sch.is_home, 0) AS is_home
@@ -740,6 +740,7 @@ export function briefRows(db: DatabaseSync, filter: BenchArticleFilter): BenchBr
     location: String(r.location ?? ''),
     orgForm: String(r.org_form ?? ''),
     audience: String(r.audience ?? ''),
+    joinMethod: String(r.join_method ?? ''),
     coOrganizer: String(r.co_organizer ?? ''),
     duration: String(r.duration ?? ''),
     scale: String(r.scale ?? ''),

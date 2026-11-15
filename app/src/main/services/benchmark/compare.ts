@@ -18,7 +18,9 @@ import type {
   BenchBriefItem,
   BenchCompare,
   BenchCompareSchool,
-  BenchCompareBucket
+  BenchCompareBucket,
+  BenchCompareTopic,
+  BenchCompareTopicRow
 } from '../../../shared/benchmark'
 
 /** 样本门槛：少于这个数不参与横向对比，只列名字 */
@@ -156,6 +158,215 @@ function sortBuckets(map: Map<string, number>, total: number): BenchCompareBucke
 }
 
 /**
+ * 场地归一。
+ *
+ * 原文写的是「逸夫楼报告厅」「东区体育馆」「线上腾讯会议」，直接并排看
+ * 只能看出各校楼名不一样。收成场所类别之后，「人家在礼堂办、我们在教室办」
+ * 这种差别才浮出来——这是能直接照着改的。
+ *
+ * 顺序照旧从具体到宽泛：「大学生活动中心报告厅」既是活动中心也是报告厅，
+ * 归到礼堂更能说明这场活动的规格。
+ */
+const VENUE_RULES: { label: string; re: RegExp }[] = [
+  { label: '线上', re: /线上|云端|直播|腾讯会议|钉钉|bilibili|B站/i },
+  { label: '礼堂与剧场', re: /礼堂|报告厅|音乐厅|剧场|剧院|演播厅|大舞台/ },
+  { label: '体育场馆', re: /体育馆|操场|球场|田径场|运动场|游泳馆|篮球场|足球场|体育中心/ },
+  { label: '活动中心', re: /活动中心|多功能厅|活动室|学生中心|创客空间|社团活动/ },
+  { label: '户外场地', re: /广场|草坪|湖畔|中庭|户外|露天|大道|花园|操场旁/ },
+  { label: '食堂与咖啡', re: /食堂|餐厅|咖啡|餐吧|美食/ },
+  { label: '教学楼', re: /教学楼|教室|实验室|学院楼|图书馆/ }
+]
+
+export function bucketVenue(text: string): string | null {
+  const s = (text || '').trim()
+  if (!s) return null
+  for (const rule of VENUE_RULES) if (rule.re.test(s)) return rule.label
+  return '其他场地'
+}
+
+/**
+ * 参与方式归一。
+ *
+ * 抢票、报名、扫码进群在推文里经常同时出现，这一行只记最先命中的那一种：
+ * 一场活动给了报名表和抢票入口时，「要不要抢」比「要不要填表」更能决定
+ * 学生来不来，所以抢票排在前面。
+ */
+const JOIN_RULES: { label: string; re: RegExp }[] = [
+  { label: '抢票', re: /抢票|领票|派票|放票|门票|票务|一票难求/ },
+  { label: '报名', re: /报名|问卷|表单|申请|登记|填表/ },
+  { label: '扫码进群', re: /扫码|进群|加群|群聊|QQ群|微信群/ },
+  { label: '定向邀请', re: /邀请|定向|嘉宾|凭函/ },
+  { label: '自由参加', re: /无需报名|自由入场|直接到场|自行前往|全体参加|均可参加/ }
+]
+
+export function bucketJoin(text: string): string | null {
+  const s = (text || '').trim()
+  if (!s) return null
+  for (const rule of JOIN_RULES) if (rule.re.test(s)) return rule.label
+  return null
+}
+
+/**
+ * 同一场活动被写成几条时的取舍。
+ *
+ * 预告、招募、回顾三篇里，回顾写得最全但也最容易漏报名方式，预告有时间和地点
+ * 却没写实际规模。这里按「非空字段数」挑一条当代表，平手时取发布最早的那条——
+ * 早的那条是给人看的，晚的往往是给没去的人补作业的。
+ */
+function richness(item: BenchBriefItem): number {
+  const fields: (string | null | number)[] = [
+    item.startAt,
+    item.weekNo,
+    item.location,
+    item.audience,
+    item.joinMethod,
+    item.orgForm,
+    item.coOrganizer,
+    item.duration,
+    item.scale
+  ]
+  const base = fields.filter((v) => v !== null && v !== undefined && String(v).trim() !== '').length
+  return base + (item.agenda.length ? 1 : 0) + (item.highlights.length ? 1 : 0)
+}
+
+/** 「5 所学校 9 场」之外再补一句能照着改的话。每个分句都有数在后面撑着 */
+function topicNote(
+  kind: string,
+  schools: number,
+  rows: BenchCompareTopicRow[],
+  medianWeek: number | null,
+  medianLead: number | null,
+  venues: BenchCompareBucket[],
+  joins: BenchCompareBucket[],
+  coHostRate: number
+): string {
+  const parts: string[] = []
+  if (medianWeek !== null) parts.push(`多在第 ${medianWeek} 周`)
+  if (medianLead !== null) parts.push(medianLead === 0 ? '当天才发预告' : `中位提前 ${medianLead} 天发预告`)
+
+  const venue = venues[0]
+  if (venue) parts.push(`${venue.count} 场在${venue.label}`)
+
+  const join = joins[0]
+  if (join) parts.push(`${join.count} 场要${join.label}`)
+
+  if (coHostRate > 0) parts.push(`合办 ${Math.round(coHostRate * 100)}%`)
+
+  const head = `${schools} 所学校共 ${rows.length} 场「${kind}」`
+  return parts.length ? `${head}：${parts.join('，')}。` : `${head}。`
+}
+
+/**
+ * 跨校同类活动对照。
+ *
+ * 简报里已有的两种视图（条目列表、各校一览）都是按学校切的。可是真正要办事时，
+ * 问题是「迎新晚会别人怎么办的」，不是「复旦这个学校整体什么水平」。
+ * 所以这里换一个切法：同一类活动横着摆，一场一行。
+ *
+ * 两条取舍，都是同一个理由——并排看会让人当成可比事实：
+ * 只有一所学校的类型不进表（那是它自己的重复，不是「别人怎么做的」）；
+ * 同校同日的几篇推文合成一场（同一场活动的预告、招募、回顾，各算一条就虚高）。
+ * 没写日期的仍然各算一场：两场都没写日期就分不出来，宁可比实际多一行。
+ */
+export function buildTopics(items: BenchBriefItem[], limit = 6): BenchCompareTopic[] {
+  const byKind = new Map<string, BenchBriefItem[]>()
+  for (const item of items) {
+    const key = bucketKind(item.kind)
+    if (!byKind.has(key)) byKind.set(key, [])
+    byKind.get(key)!.push(item)
+  }
+
+  const topics: BenchCompareTopic[] = []
+
+  for (const [kind, list] of byKind) {
+    // 先按「学校 + 日期」合并同一场活动的多篇推文，再数学校
+    const picked = new Map<string, BenchBriefItem>()
+    list.forEach((item, i) => {
+      const day = (item.startAt ?? '').slice(0, 10)
+      const school = item.school || '未填学校'
+      const key = day ? `${school}|${day}` : `${school}|#${i}`
+      const prev = picked.get(key)
+      if (!prev) {
+        picked.set(key, item)
+        return
+      }
+      const diff = richness(item) - richness(prev)
+      if (diff > 0 || (diff === 0 && (item.publishedAt ?? '') < (prev.publishedAt ?? ''))) {
+        picked.set(key, item)
+      }
+    })
+
+    const rows0 = [...picked.values()]
+    const schoolSet = new Set(rows0.map((i) => i.school || '未填学校'))
+    if (schoolSet.size < MIN_SAMPLE) continue
+
+    const rows: BenchCompareTopicRow[] = rows0.map((i) => ({
+      school: i.school || '未填学校',
+      isHome: i.isHome,
+      title: i.title,
+      startAt: i.startAt,
+      weekNo: i.weekNo,
+      leadDays: leadDays(i),
+      location: i.location,
+      audience: i.audience,
+      joinMethod: i.joinMethod,
+      orgForm: i.orgForm,
+      scale: i.scale,
+      coOrganizer: i.coOrganizer,
+      highlights: i.highlights
+    }))
+
+    // 本校在前，其余按日期先后——同一件事谁先办谁后办，本身就说明学期的位置
+    rows.sort((a, b) => {
+      if (a.isHome !== b.isHome) return a.isHome ? -1 : 1
+      const da = a.startAt ?? ''
+      const db = b.startAt ?? ''
+      if (da && db && da !== db) return da < db ? -1 : 1
+      if (da && !db) return -1
+      if (!da && db) return 1
+      return a.school.localeCompare(b.school)
+    })
+
+    const weeks = rows.map((r) => r.weekNo).filter((n): n is number => typeof n === 'number' && n > 0)
+    const leads = rows.map((r) => r.leadDays).filter((n): n is number => n !== null)
+
+    const venueMap = new Map<string, number>()
+    for (const r of rows) {
+      const key = bucketVenue(r.location)
+      if (key) countInto(venueMap, key)
+    }
+    const joinMap = new Map<string, number>()
+    for (const r of rows) {
+      const key = bucketJoin(`${r.joinMethod} ${r.orgForm}`)
+      if (key) countInto(joinMap, key)
+    }
+
+    const coHosted = rows.filter((r) => (r.coOrganizer && r.coOrganizer.trim()) || /联合|共同|协办|承办|联手|共建/.test(r.orgForm || '')).length
+    const medianWeek = median(weeks)
+    const medianLead = median(leads)
+    const venues = sortBuckets(venueMap, rows.length)
+    const joins = sortBuckets(joinMap, rows.length)
+    const coHostRate = rows.length ? coHosted / rows.length : 0
+
+    topics.push({
+      kind,
+      schools: schoolSet.size,
+      rows,
+      medianWeek,
+      medianLeadDays: medianLead,
+      venues,
+      joins,
+      coHostRate,
+      note: topicNote(kind, schoolSet.size, rows, medianWeek, medianLead, venues, joins, coHostRate)
+    })
+  }
+
+  // 学校多的排前面：三所学校的同一件事，比一所学校的两场更值得看
+  topics.sort((a, b) => b.schools - a.schools || b.rows.length - a.rows.length || a.kind.localeCompare(b.kind))
+  return topics.slice(0, limit)
+}
+
+/**
  * 一场活动发了几篇推文，就只算一场。
  *
  * 实测：上海大学 2025 级开学典礼暨迎新晚会发了三条——「预告来啦」「举行」
@@ -262,11 +473,16 @@ export function buildCompare(items: BenchBriefItem[]): BenchCompare {
   const solid = schools.filter((s) => !s.thin)
 
   const kinds = sortBuckets(kindMap, items.length)
+  const topics = buildTopics(items)
+  // 写了人数的场次：按全部条目数，不按进了对比表的学校数——
+  // 一所学校只采到 1 场、恰好写了人数时，它不进对比表，但那个数仍然存在
+  const withScale = items.filter((i) => parseScale(i.scale) !== null).length
 
   return {
     schools,
     kinds,
     promos: sortBuckets(promoMap, items.length),
+    topics,
     coverage: {
       scale: solid.filter((s) => s.medianScale !== null).length,
       lead: solid.filter((s) => s.medianLeadDays !== null).length,
@@ -274,7 +490,7 @@ export function buildCompare(items: BenchBriefItem[]): BenchCompare {
       coHost: solid.filter((s) => s.coHostRate > 0).length,
       week: solid.filter((s) => s.medianWeek !== null).length
     },
-    insights: makeInsights(schools, items.length, kinds)
+    insights: makeInsights(schools, items.length, kinds, topics, withScale)
   }
 }
 
@@ -317,7 +533,10 @@ const dayWord = (n: number): string => (n >= 14 ? `约 ${Math.round(n / 7)} 周`
 function makeInsights(
   schools: BenchCompareSchool[],
   total: number,
-  kinds: BenchCompareBucket[]
+  kinds: BenchCompareBucket[],
+  topics: BenchCompareTopic[],
+  /** 原文写了人数的场次数（按全部条目算，不受「进不进对比表」影响） */
+  scaleItems: number
 ): string[] {
   const out: string[] = []
   if (!total) return ['库里没有符合条件的活动，先补采几个公众号再来看对比。']
@@ -349,6 +568,12 @@ function makeInsights(
     )
   }
 
+  // 同一件事横着看：样本里最像「一个可以照着办的活动」的那一类
+  const topic = topics[0]
+  if (topic && topic.schools >= 3) {
+    out.push(`同一件事：${topic.note}这一条是按类型横着看的，明细见「同类活动」那一节。`)
+  }
+
   // 1. 规模
   const scale = versus(schools, (s) => s.medianScale)
   const withScale = solid.filter((s) => s.medianScale !== null && s.scaleCoverage >= 0.3)
@@ -374,9 +599,8 @@ function makeInsights(
     }
   } else {
     // 说清「没写」而不是「没抽到」：前者是这类推文的常态，后者会让人以为工具坏了
-    const withNum = Math.round(solid.reduce((acc, s) => acc + s.activities * s.scaleCoverage, 0))
     out.push(
-      `规模：${total} 场活动里只有 ${withNum} 场在原文写了参与人数，不到两所学校有数据，这项没法横向比。` +
+      `规模：${total} 场活动里只有 ${scaleItems} 场在原文写了参与人数，不到两所学校有数据，这项没法横向比。` +
         `校园活动报道普遍不写人数——不是抽取漏了，是原文没有。`
     )
   }

@@ -171,8 +171,71 @@ function schoolTable(compare: BenchCompare): string {
   </section>`
 }
 
-const STYLE = `
-:root{
+/**
+ * 同一件事，各校怎么办。
+ *
+ * 各校一览回答「谁办得多、谁预热早」，这一节回答「我要办这一场，别人怎么做的」。
+ * 打印稿里最多放两类、每类十场：再多就成了一本人名录，反而没人看。
+ */
+function topicTables(compare: BenchCompare): string {
+  const topics = compare.topics.slice(0, 2).filter((t) => t.rows.length >= 2)
+  if (!topics.length) return ''
+
+  return topics
+    .map((t) => {
+      // 列随数据走：这一类的活动都没写场地，就不摆场地一列，免得整列都是「—」
+      const enough = (pred: (r: (typeof t.rows)[number]) => boolean): boolean =>
+        t.rows.filter(pred).length >= Math.max(2, Math.ceil(t.rows.length * 0.25))
+
+      const hasVenue = enough((r) => Boolean(r.location))
+      const hasJoin = enough((r) => Boolean(r.joinMethod))
+      const hasHl = enough((r) => r.highlights.length > 0)
+      const span = 2 + (hasVenue ? 1 : 0) + (hasJoin ? 1 : 0) + (hasHl ? 1 : 0)
+
+      const rows = t.rows
+        .slice(0, 10)
+        .map((r) => {
+          const when = r.startAt
+            ? `${esc(r.startAt.slice(0, 10))}${r.weekNo ? `<span class="unit">第${r.weekNo}周</span>` : ''}`
+            : '<span class="muted">—</span>'
+          const cells = [
+            `<td class="name">${esc(r.school)}${r.isHome ? '<span class="tag">本校</span>' : ''}</td>`,
+            `<td class="when">${when}</td>`
+          ]
+          if (hasVenue) cells.push(`<td>${r.location ? esc(r.location) : '<span class="muted">—</span>'}</td>`)
+          if (hasJoin) cells.push(`<td>${r.joinMethod ? esc(r.joinMethod) : '<span class="muted">—</span>'}</td>`)
+          if (hasHl) {
+            const hl = r.highlights.slice(0, 2).join('；')
+            cells.push(`<td class="hl">${hl ? esc(hl) : '<span class="muted">—</span>'}</td>`)
+          }
+          return `<tr class="${r.isHome ? 'home' : ''}">${cells.join('')}</tr>`
+        })
+        .join('')
+
+      const more =
+        t.rows.length > 10
+          ? `<tr><td colspan="${span}" class="muted">另有 ${t.rows.length - 10} 场，见后文逐校明细</td></tr>`
+          : ''
+
+      const head = ['<th>学校</th>', '<th>时间</th>']
+      if (hasVenue) head.push('<th>场地</th>')
+      if (hasJoin) head.push('<th>参与方式</th>')
+      if (hasHl) head.push('<th>特色</th>')
+
+      return `
+  <section class="block">
+    <h3>${esc(t.kind)}<span class="sub">${t.schools} 所学校 ${t.rows.length} 场</span></h3>
+    <p class="note">${esc(t.note)}</p>
+    <table class="grid">
+      <thead><tr>${head.join('')}</tr></thead>
+      <tbody>${rows}${more}</tbody>
+    </table>
+  </section>`
+    })
+    .join('')
+}
+
+const STYLE = `:root{
   --ink:#1c1c1a; --ink-2:#4a4a46; --ink-3:#8a8a82;
   --line:#e2e0da; --wall:#f6f5f1; --paper:#fff; --accent:#9b3b2f;
 }
@@ -211,6 +274,10 @@ table.grid td{padding:9px 8px; border-bottom:1px solid var(--line); vertical-ali
 table.grid th.n, table.grid td.n{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap}
 table.grid td.name{font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 table.grid td.kind{color:var(--ink-2)}
+/* 同类活动表：时间不折行，特色一栏字号小一档，免得把行撑成三行高 */
+table.grid td.when{white-space:nowrap; color:var(--ink-2); font-variant-numeric:tabular-nums}
+table.grid td.hl{color:var(--ink-2); font-size:12px}
+h3 .sub{font-weight:400; font-size:11.5px; color:var(--ink-3); margin-left:8px; letter-spacing:0}
 table.grid tr.home td{background:#faf8f4}
 table.grid tr.home td.name{box-shadow:inset 3px 0 0 var(--accent)}
 table.grid td .slash{color:var(--ink-3); font-weight:400}
@@ -311,6 +378,9 @@ export function buildReportHtml(brief: BenchBrief): string {
   ${schoolTable(brief.compare)}
   ${bars('办的是些什么活动', brief.compare.kinds)}
   ${bars('宣传都用哪些手段', brief.compare.promos)}
+
+  ${brief.compare.topics.length ? '<h2>同一件事，各校怎么办</h2>' : ''}
+  ${topicTables(brief.compare)}
 
   <h2>逐校明细</h2>
   ${homeBlock}

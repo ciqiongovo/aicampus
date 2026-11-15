@@ -374,6 +374,8 @@ export interface BenchBriefItem {
   location: string
   orgForm: string
   audience: string
+  /** 参与方式：报名、抢票、扫码进群… 同类活动对照要看的就是这一项 */
+  joinMethod: string
   coOrganizer: string
   duration: string
   scale: string
@@ -476,12 +478,68 @@ export interface BenchCompareBucket {
   share: number
 }
 
+/**
+ * 同类活动里的一行：某校办的某一场。
+ *
+ * 不带 id 与 url —— 这一行是拿来并排看的，点回原文属于「活动明细」那件事。
+ * 真要看原文，标题本身就在，明细里按标题搜得到。
+ */
+export interface BenchCompareTopicRow {
+  school: string
+  isHome: boolean
+  title: string
+  startAt: string | null
+  weekNo: number | null
+  /** 推文发布到开始隔了几天，算不出为 null */
+  leadDays: number | null
+  location: string
+  audience: string
+  joinMethod: string
+  orgForm: string
+  scale: string
+  coOrganizer: string
+  highlights: string[]
+}
+
+/**
+ * 「同一件事，各校怎么办」。
+ *
+ * 各校一览回答的是「谁办得多、谁预热早」；真到自己要办一场迎新晚会时，
+ * 想知道的是「别人这场在哪办、要不要抢票、请了谁合办」。这两种问题
+ * 用同一张表回答不了：前者一行一所学校，后者一行一场活动。
+ *
+ * 只有跨校才有对比价值——一所学校的两场同类活动，看到的是它自己的重复，
+ * 所以少于两所学校的类型不进来（数量仍由 kinds 那个分布交代）。
+ */
+export interface BenchCompareTopic {
+  /** 归一后的类型，如「迎新与毕业」 */
+  kind: string
+  /** 涉及几所学校 */
+  schools: number
+  rows: BenchCompareTopicRow[]
+  medianWeek: number | null
+  medianLeadDays: number | null
+  /** 场地类型分布：礼堂与剧场 / 体育场馆 / 户外 / 线上… */
+  venues: BenchCompareBucket[]
+  /** 参与方式分布：报名 / 抢票 / 扫码进群 / 自由参加… */
+  joins: BenchCompareBucket[]
+  /** 有协办/联办单位的场次占比 */
+  coHostRate: number
+  /** 一句话小结，每个分句都能倒推回上面的数 */
+  note: string
+}
+
 export interface BenchCompare {
   schools: BenchCompareSchool[]
   /** 活动类型分布 */
   kinds: BenchCompareBucket[]
   /** 宣传手段分布 */
   promos: BenchCompareBucket[]
+  /**
+   * 跨校的同类活动对照，按涉及学校数排序。
+   * 同一类型至少两所学校才进来——一所学校的重复不叫对照。
+   */
+  topics: BenchCompareTopic[]
   coverage: BenchCompareCoverage
   /** 能倒推回上表的结论句。写不出数字支撑的话不写 */
   insights: string[]

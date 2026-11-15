@@ -86,6 +86,31 @@ run('空标题不炸', () => {
   assert.strictEqual(offTopicReason(null), null)
 })
 
+// ---------- 时间解析 ----------
+// 原文里「3 月 8 日 24:00」这种写法很常见（当天结束前），它不是合法时刻，
+// 直接入库会让排序和「提前几天」的计算一起出错。
+
+const { extractByRules } = require('../.test-out/main/services/benchmark/rule-extract.js')
+
+run('「24:00」折成 23:59，不写进非法时刻', () => {
+  const r = extractByRules({
+    title: '迎新晚会报名',
+    body: '活动时间：3月8日 24:00 前提交',
+    publishedAt: '2026-03-01 10:00'
+  })
+  assert.ok(r.startAt, '应该抽到开始时间')
+  assert.ok(r.startAt.endsWith('23:59:00'), r.startAt)
+})
+
+run('正常时刻照原样保留', () => {
+  const r = extractByRules({
+    title: '迎新晚会',
+    body: '活动时间：9月27日 18:30',
+    publishedAt: '2026-09-01 10:00'
+  })
+  assert.ok(r.startAt && r.startAt.endsWith('18:30:00'), r.startAt)
+})
+
 // ---------- 结果 ----------
 if (fails.length) {
   console.error(`\n未通过 ${fails.length} 项：`)

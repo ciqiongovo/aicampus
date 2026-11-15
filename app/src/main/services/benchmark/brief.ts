@@ -174,6 +174,71 @@ function compareSection(c: BenchCompare): string[] {
     lines.push('')
   }
 
+  lines.push(...topicSection(c))
+
+  return lines
+}
+
+/** 表格单元格里的竖线与换行会把 Markdown 表撕开，先换成全角竖线与空格 */
+function cell(v: string): string {
+  return (v || '').replace(/\|/g, '／').replace(/\s*\n+\s*/g, ' ').trim()
+}
+
+/**
+ * 同一件事各校怎么办。
+ *
+ * 只取前两类、每类最多八场：这一节是给人「照着改」的参考，
+ * 不是全量清单——全量在后面的逐条明细里，一条不少。
+ */
+function topicSection(c: BenchCompare): string[] {
+  const topics = c.topics.slice(0, 2).filter((t) => t.rows.length >= 2)
+  if (!topics.length) return []
+
+  const lines: string[] = []
+  lines.push('### 同一件事，各校怎么办')
+  lines.push('')
+
+  for (const t of topics) {
+    lines.push(`**${t.kind}**（${t.schools} 所学校 ${t.rows.length} 场）`)
+    lines.push('')
+    lines.push(t.note)
+    lines.push('')
+
+    // 列随数据走：这一类的活动都没写场地，就不摆场地一列。
+    // 摆出来是一整列「—」，读的人会以为抽取坏了，而不是原文没写。
+    // 门槛是「至少两行、且不低于四分之一」：20 场里只有 2 场写了参与方式，
+    // 单开一列会让人以为这是个可比的维度。
+    const enough = (pred: (r: (typeof t.rows)[number]) => boolean): boolean =>
+      t.rows.filter(pred).length >= Math.max(2, Math.ceil(t.rows.length * 0.25))
+
+    const hasVenue = enough((r) => Boolean(r.location))
+    const hasJoin = enough((r) => Boolean(r.joinMethod))
+    const hasHl = enough((r) => r.highlights.length > 0)
+
+    const head = ['学校', '时间']
+    if (hasVenue) head.push('场地')
+    if (hasJoin) head.push('参与方式')
+    if (hasHl) head.push('特色')
+
+    lines.push(`| ${head.join(' | ')} |`)
+    lines.push(`| ${head.map(() => '---').join(' | ')} |`)
+
+    for (const r of t.rows.slice(0, 8)) {
+      const when = r.startAt
+        ? `${r.startAt.slice(0, 10)}${r.weekNo ? ` 第${r.weekNo}周` : ''}`
+        : '—'
+      const cells = [`${cell(r.school)}${r.isHome ? '（本校）' : ''}`, when]
+      if (hasVenue) cells.push(cell(r.location) || '—')
+      if (hasJoin) cells.push(cell(r.joinMethod) || '—')
+      if (hasHl) cells.push(cell(r.highlights.slice(0, 2).join('；')) || '—')
+      lines.push(`| ${cells.join(' | ')} |`)
+    }
+    if (t.rows.length > 8) {
+      lines.push(`| 另有 ${t.rows.length - 8} 场 |${' |'.repeat(head.length - 1)}`)
+    }
+    lines.push('')
+  }
+
   return lines
 }
 

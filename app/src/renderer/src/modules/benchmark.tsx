@@ -21,6 +21,7 @@ import {
 import {
   BookOutlined,
   CloudDownloadOutlined,
+  EnvironmentOutlined,
   FileTextOutlined,
   InboxOutlined,
   PlayCircleOutlined,
@@ -40,6 +41,7 @@ import type {
   BenchArticleStatus,
   BenchAuditResult,
   BenchBrief,
+  BenchCompareTopic,
   BenchProgressEvent,
   BenchProspectInfo,
   BenchSchoolInfo,
@@ -1781,6 +1783,124 @@ function BarList({
 }
 
 /**
+ * 「同一件事，各校怎么办」。
+ *
+ * 各校一览按学校切，这里按活动类型切：选一个类型，把各校办的同类活动一场一行摆开。
+ * 之所以用卡片不用表格：一场活动的差别分散在场地、面向、参与方式、规模、特色这几处，
+ * 表格里挤成几格全是省略号，等于没给看。
+ */
+function TopicPanel({ topics }: { topics: BenchCompareTopic[] }): JSX.Element | null {
+  const [idx, setIdx] = useState(0)
+  const [showAll, setShowAll] = useState(false)
+  if (!topics.length) return null
+  const cur = topics[Math.min(idx, topics.length - 1)]
+
+  // 二十场同类活动全铺开会把这个抽屉撑成一本名录；先给八场，剩下的点开看
+  const LIMIT = 8
+  const shown = showAll ? cur.rows : cur.rows.slice(0, LIMIT)
+  const rest = cur.rows.length - shown.length
+
+  return (
+    <section className="bench-cmp-topics">
+      <div className="bench-cmp-h">同类活动</div>
+      <Typography.Paragraph type="secondary" style={{ fontSize: 12, marginTop: -4 }}>
+        同一类活动横着看：别人在哪办、要不要抢票、请谁一起办。少于两所学校的类型不列——一所学校的两场是它自己的重复，不是对照。
+      </Typography.Paragraph>
+
+      <div className="bench-topic-tabs">
+        {topics.map((t, i) => (
+          <button
+            key={t.kind}
+            type="button"
+            className={`bench-topic-tab${i === idx ? ' is-on' : ''}`}
+            onClick={() => {
+              setIdx(i)
+              setShowAll(false)
+            }}
+          >
+            {t.kind}
+            <i>
+              {t.schools} 校 · {t.rows.length} 场
+            </i>
+          </button>
+        ))}
+      </div>
+
+      <div className="bench-topic-sum">
+        <p className="bench-topic-note">{cur.note}</p>
+        <div className="bench-topic-dist">
+          {cur.venues.length ? (
+            <span>
+              场地：{cur.venues.map((v) => `${v.label} ${v.count}`).join('、')}
+            </span>
+          ) : null}
+          {cur.joins.length ? (
+            <span>参与方式：{cur.joins.map((v) => `${v.label} ${v.count}`).join('、')}</span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="bench-topic-cards">
+        {shown.map((r, i) => (
+          <article
+            key={`${r.school}-${i}`}
+            className={`bench-topic-card${r.isHome ? ' is-home' : ''}`}
+          >
+            <div className="bench-topic-top">
+              <span className="bench-topic-school">
+                {r.school}
+                {r.isHome ? (
+                  <Tag color="red" style={{ marginLeft: 6 }}>
+                    本校
+                  </Tag>
+                ) : null}
+              </span>
+              <span className="bench-topic-when">
+                {r.startAt ? shortDate(r.startAt) : '日期未写'}
+                {r.weekNo ? ` · 第 ${r.weekNo} 周` : ''}
+                {r.leadDays !== null ? ` · 提前 ${r.leadDays} 天预告` : ''}
+              </span>
+            </div>
+            <div className="bench-topic-title" title={r.title}>
+              {r.title}
+            </div>
+            <div className="bench-topic-facts">
+              {r.location ? (
+                <span>
+                  <EnvironmentOutlined /> {r.location}
+                </span>
+              ) : null}
+              {r.audience ? <span>面向 {r.audience}</span> : null}
+              {r.joinMethod ? <span>{r.joinMethod}</span> : null}
+              {r.scale ? <span>{r.scale}</span> : null}
+              {r.coOrganizer ? <span>协办 {r.coOrganizer}</span> : null}
+            </div>
+            {r.highlights.length ? (
+              <div className="bench-topic-hl">
+                {r.highlights.slice(0, 3).map((h) => (
+                  <span key={h}>{h}</span>
+                ))}
+              </div>
+            ) : null}
+          </article>
+        ))}
+      </div>
+
+      {rest > 0 ? (
+        <Button type="link" size="small" className="bench-topic-more" onClick={() => setShowAll(true)}>
+          还有 {rest} 场，展开
+        </Button>
+      ) : null}
+      {showAll && cur.rows.length > LIMIT ? (
+        <Button type="link" size="small" className="bench-topic-more" onClick={() => setShowAll(false)}>
+          收起
+        </Button>
+      ) : null}
+    </section>
+  )
+}
+
+/**
  * 简报里的「横向对比」页签。
  *
  * 与「简报原文」放同一个抽屉里，因为它们用的是同一次计算的结果——
@@ -1934,6 +2054,8 @@ function ComparePanel({ brief }: { brief: BenchBrief }): JSX.Element {
         <BarList title="办的是些什么活动" unit="场" data={compare.kinds} />
         <BarList title="宣传都用哪些手段" unit="次" data={compare.promos} />
       </div>
+
+      <TopicPanel topics={compare.topics} />
     </div>
   )
 }
