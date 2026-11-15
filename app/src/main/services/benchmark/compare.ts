@@ -258,31 +258,69 @@ export function buildCompare(items: BenchBriefItem[]): BenchCompare {
 }
 
 /**
+ * 本校与外校（中位）的差值。
+ *
+ * 对标的落点其实是这一句话：「别人平均怎么做，我们怎么做，差在哪」。
+ * 只把本校作为一行放进表里，读的人还得自己横着比一遍；
+ * 所以凡是本校和外校都有数据的维度，都把差值算出来说清楚。
+ *
+ * 外校少于两所就返回 null——一所学校组成的「外校平均」不是平均，是那一所。
+ */
+function versus(
+  schools: BenchCompareSchool[],
+  pick: (s: BenchCompareSchool) => number | null
+): { home: number; others: number; n: number } | null {
+  const home = schools.find((s) => s.isHome && !s.thin)
+  if (!home) return null
+  const hv = pick(home)
+  if (hv === null) return null
+  const vals = schools
+    .filter((s) => !s.isHome && !s.thin)
+    .map(pick)
+    .filter((v): v is number => v !== null)
+  if (vals.length < 2) return null
+  return { home: hv, others: median(vals) ?? 0, n: vals.length }
+}
+
+// 10 天写成「约 2 周」会把 11 说成 14。满两周才换算，否则照实说天数
+const dayWord = (n: number): string => (n >= 14 ? `约 ${Math.round(n / 7)} 周` : `${n} 天`)
+
+/**
  * 生成结论句。
  *
  * 每一条都必须能倒推回上面那张表里的某个数——写不出数字支撑的话，
  * 一律不写。宁可只有三句，也不要一段听上去很有道理的无来源判断。
+ *
+ * 顺序按「能不能照做」排：规模与节奏是能直接改的，周次是学期安排，合办是组织形式。
  */
 function makeInsights(schools: BenchCompareSchool[], total: number): string[] {
   const out: string[] = []
   if (!total) return ['库里没有符合条件的活动，先补采几个公众号再来看对比。']
 
   const solid = schools.filter((s) => !s.thin)
-  const home = schools.find((s) => s.isHome && !s.thin)
 
-  // 1. 规模：只在有足够的「写了人数」的样本时才说
+  // 1. 规模
+  const scale = versus(schools, (s) => s.medianScale)
   const withScale = solid.filter((s) => s.medianScale !== null && s.scaleCoverage >= 0.3)
-  if (withScale.length >= 2) {
+  if (scale) {
+    const diff = scale.home - scale.others
+    const judge =
+      Math.abs(diff) <= Math.max(20, scale.others * 0.15)
+        ? '量级差不多'
+        : diff > 0
+          ? `我们大 ${diff} 人`
+          : `我们小 ${-diff} 人`
+    out.push(
+      `规模：本校中位 ${scale.home} 人，外校中位 ${scale.others} 人（${scale.n} 所写了人数）——${judge}。`
+    )
+  } else if (withScale.length >= 2) {
     const top = [...withScale].sort((a, b) => (b.medianScale ?? 0) - (a.medianScale ?? 0))[0]
     const low = [...withScale].sort((a, b) => (a.medianScale ?? 0) - (b.medianScale ?? 0))[0]
-    if (top.medianScale !== low.medianScale && top.school !== low.school) {
+    if (top.medianScale !== low.medianScale) {
       out.push(
         `规模：${top.school}的中位规模最高，约 ${top.medianScale} 人；${low.school}最小，约 ${low.medianScale} 人。` +
-          `注意各校只有 ${Math.round(top.scaleCoverage * 100)}%、${Math.round(low.scaleCoverage * 100)}% 的活动在原文里写了人数，这是「写了的那些」的中位数。`
+          `各校只有 ${Math.round(top.scaleCoverage * 100)}%、${Math.round(low.scaleCoverage * 100)}% 的活动写了人数，这是「写了的那些」的中位数。`
       )
-    }
-    if (home && home.medianScale !== null) {
-      out.push(`本校基准：${home.school}中位规模约 ${home.medianScale} 人（${home.activities} 场活动）。`)
     }
   } else {
     // 说清「没写」而不是「没抽到」：前者是这类推文的常态，后者会让人以为工具坏了
@@ -293,22 +331,43 @@ function makeInsights(schools: BenchCompareSchool[], total: number): string[] {
     )
   }
 
-  // 2. 宣传节奏
-  const withLead = solid.filter((s) => s.medianLeadDays !== null)
-  if (withLead.length >= 2) {
-    const sorted = [...withLead].sort((a, b) => (a.medianLeadDays ?? 0) - (b.medianLeadDays ?? 0))
-    const early = sorted[sorted.length - 1]
-    const late = sorted[0]
-    if (early.medianLeadDays !== late.medianLeadDays) {
-      out.push(
-        `节奏：${early.school}提前得最早，中位 ${early.medianLeadDays} 天发预告；` +
-          `${late.school}最晚，中位 ${late.medianLeadDays} 天。` +
-          (home && home.medianLeadDays !== null ? `本校 ${home.medianLeadDays} 天。` : '')
-      )
+  // 2. 宣传节奏：预热多久发预告，是最近乎「照着改」的一项
+  const lead = versus(schools, (s) => s.medianLeadDays)
+  if (lead) {
+    const diff = lead.home - lead.others
+    const judge =
+      Math.abs(diff) <= 1
+        ? '节奏基本一致'
+        : diff > 0
+          ? `我们早了 ${dayWord(diff)}，预热期拉得比人家长`
+          : `我们晚了 ${dayWord(-diff)}，出手比人家急`
+    out.push(
+      `节奏：本校中位提前 ${dayWord(lead.home)}发预告，外校 ${dayWord(lead.others)}（${lead.n} 所）——${judge}。`
+    )
+  } else {
+    const withLead = solid.filter((s) => s.medianLeadDays !== null)
+    if (withLead.length >= 2) {
+      const sorted = [...withLead].sort((a, b) => (a.medianLeadDays ?? 0) - (b.medianLeadDays ?? 0))
+      const early = sorted[sorted.length - 1]
+      const late = sorted[0]
+      if (early.medianLeadDays !== late.medianLeadDays) {
+        out.push(
+          `节奏：${early.school}提前得最早，中位 ${early.medianLeadDays} 天发预告；${late.school}最晚，${late.medianLeadDays} 天。本校这项没有可用数据。`
+        )
+      }
     }
   }
 
-  // 3. 合办
+  // 3. 学期位置：同一个活动放在学期第几周，是安排问题，不是执行问题
+  const week = versus(schools, (s) => s.medianWeek)
+  if (week && Math.abs(week.home - week.others) >= 2) {
+    out.push(
+      `周次：本校活动多在第 ${week.home} 周办，外校中位第 ${week.others} 周（${week.n} 所）——` +
+        `相差 ${Math.abs(week.home - week.others)} 周。这是学期节奏上的位置差别，不是把某个环节做得更细就能追上的。`
+    )
+  }
+
+  // 4. 合办
   const coHost = solid.filter((s) => s.coHostRate >= 0.5)
   if (coHost.length) {
     const names = coHost

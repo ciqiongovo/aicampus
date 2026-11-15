@@ -221,6 +221,60 @@ run('结论里必须带数字，且提到样本不足', () => {
   assert.ok(/同济大学/.test(text), '应该提到只有 1 场的那所学校')
 })
 
+console.log('\n== 本校 vs 外校 ==')
+
+// 本校 3 场（都在第 12 周、提前 10 天），外校三所各 2 场（第 4–6 周、提前 0–4 天）
+const homeItems = [1, 2, 3].map((n) =>
+  item({
+    school: '上海科技大学',
+    isHome: true,
+    kind: '迎新晚会',
+    publishedAt: `2025-09-0${n} 10:00`,
+    startAt: `2025-09-1${n} 19:00`,
+    weekNo: 12
+  })
+)
+const otherItems = [
+  ['复旦大学', 4, 4],
+  ['上海大学', 3, 5],
+  ['同济大学', 2, 6]
+].flatMap(([school, lead, week]) =>
+  [0, 1].map(() =>
+    item({
+      school,
+      kind: '迎新晚会',
+      publishedAt: '2025-09-01 10:00',
+      startAt: `2025-09-${String(1 + lead).padStart(2, '0')} 19:00`,
+      weekNo: week
+    })
+  )
+)
+const withHome = buildCompare([...homeItems, ...otherItems])
+
+run('有本校、外校也够两所时，结论直接给差值', () => {
+  const leadLine = withHome.insights.find((s) => s.startsWith('节奏：'))
+  assert.ok(leadLine, '应该有节奏那一句')
+  assert.ok(/本校中位提前/.test(leadLine), leadLine)
+  assert.ok(/外校/.test(leadLine), leadLine)
+  assert.ok(/我们早了/.test(leadLine), `本校 10 天、外校 2–4 天，应判为更早：${leadLine}`)
+})
+
+run('学期位置差两週以上才说，且说成安排问题而不是执行问题', () => {
+  const weekLine = withHome.insights.find((s) => s.startsWith('周次：'))
+  assert.ok(weekLine, '第 12 周对外校第 5 周，应该出这一句')
+  assert.ok(/第 12 周/.test(weekLine) && /第 5 周/.test(weekLine), weekLine)
+})
+
+run('外校不足两所时不给「外校平均」，退回描述性结论', () => {
+  const onlyOne = buildCompare([
+    ...homeItems,
+    ...otherItems.filter((i) => i.school === '复旦大学')
+  ])
+  const leadLine = onlyOne.insights.find((s) => s.startsWith('节奏：'))
+  // 一所学校组成的「外校平均」不是平均，这句话就不该出现
+  assert.ok(!leadLine || !/外校中位/.test(leadLine), String(leadLine))
+})
+
 console.log('\n== 简报与报告 ==')
 
 const brief = composeBrief(items, '示例', new Date('2025-10-01T10:00:00'))
