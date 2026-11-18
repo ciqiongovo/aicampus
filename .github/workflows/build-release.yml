@@ -51,31 +51,47 @@ jobs:
         working-directory: app
         run: pnpm run dist:portable -- --publish never
 
+      # 版本号从 package.json 读，产物名与 tag 都跟着它走。
+      # 写死版本会在升级时对不上：打包出来叫 1.0.1，脚本却在找 1.0.0。
       - name: 准备发布文件与校验和
         id: pack
         shell: pwsh
         run: |
-          $src = "app/release/ZhiShu-1.0.0-portable.exe"
-          $dst = "app/release/ZhiShu-1.0.0.exe"
+          $v = (Get-Content app/package.json -Raw | ConvertFrom-Json).version
+          $src = "app/release/ZhiShu-$v-portable.exe"
+          $dst = "app/release/ZhiShu-$v.exe"
           Copy-Item $src $dst -Force
           $h = (Get-FileHash $dst -Algorithm SHA256).Hash.ToLower()
           "sha=$h" >> $env:GITHUB_OUTPUT
+          "version=$v" >> $env:GITHUB_OUTPUT
           Write-Host "发布文件 $dst，SHA-256 $h"
 
       - name: 发布到 Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: 知枢 1.0.0
-          files: app/release/ZhiShu-1.0.0.exe
+          tag_name: v${{ steps.pack.outputs.version }}
+          name: 知枢 ${{ steps.pack.outputs.version }}
+          files: app/release/ZhiShu-${{ steps.pack.outputs.version }}.exe
           body: |
-            # 知枢 1.0.0 · Windows 版
+            # 知枢 ${{ steps.pack.outputs.version }} · Windows 版
 
             下载下面**这一个文件**，双击就能用：不需要安装、不需要装 Node、不需要联网。
 
             - 首次启动自带示例数据（13 所学校 / 39 场活动），打开即可看到跨校对标结果
             - 数据写在 `%APPDATA%\ZhiShu`，不覆盖电脑上任何已有文件
             - 源码就在本仓库，改完代码由这个工作流自动重新打包
+
+            ## 这一版新增
+
+            - **导入完整文章列表**：工具导出的 CSV（title、url、time 三列）可以直接选文件导入，
+              标题和发布时间一起进库。适合先用工具把某个公众号的历史文章翻全，再交给知枢抓正文、抽字段。
+            - 「跑完队列」单次上限从 60 篇提到 200 篇，全量导入后不用反复点。
+
+            ## 说明
+
+            - 搜索只覆盖"搜索引擎收录过"的公众号文章；要拿到某个号的全部历史，
+              需要先用外部工具导出列表，再走上面的导入。
+            - 采集有节流：一个出口 IP 连查几次就要歇，撞验证码会自动停，过 20–30 分钟再试。
 
             exe 未购买代码签名证书，Windows 首次打开若提示「已保护你的电脑」，点「更多信息」→「仍要运行」。
 

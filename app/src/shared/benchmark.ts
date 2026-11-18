@@ -17,6 +17,8 @@ export const BENCH_IPC = {
   benchArticles: 'bench:articles',
   benchArticle: 'bench:article',
   benchImportLinks: 'bench:import-links',
+  /** 选一个 CSV / TXT 文件，整份导入。工具导出的文章列表走这条 */
+  benchImportFile: 'bench:import-file',
   benchFetch: 'bench:fetch',
   benchExtract: 'bench:extract',
   benchStats: 'bench:stats',
@@ -261,6 +263,13 @@ export interface BenchImportResult {
   duplicated: number
   /** 连 __biz 都解析不出来的条数 */
   invalid: number
+}
+
+export interface BenchImportFileResult extends BenchImportResult {
+  /** 用户在选文件框里点了取消 */
+  canceled: boolean
+  /** 实际读的文件的绝对路径，取消时为空串 */
+  file: string
 }
 
 export interface BenchFetchResult {
@@ -561,6 +570,13 @@ export interface BenchApi {
   benchArticles(filter: BenchArticleFilter): Promise<BenchArticleInfo[]>
   benchArticle(id: number): Promise<BenchArticleDetail | null>
   benchImportLinks(text: string): Promise<BenchImportResult>
+  /**
+   * 选一个 CSV / TXT 文件整份导入。
+   *
+   * 给「工具导出完整历史列表」这条路用：一个号动辄几百上千条，
+   * 复制粘贴不现实，选文件读就是了。
+   */
+  benchImportFile(): Promise<BenchImportFileResult>
   benchFetch(limit?: number): Promise<BenchFetchResult>
   benchExtract(limit?: number): Promise<BenchExtractResult>
   benchStats(): Promise<BenchStats>

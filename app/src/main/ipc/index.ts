@@ -1,4 +1,5 @@
 import { app, dialog, ipcMain, shell } from 'electron'
+import { readFileSync } from 'node:fs'
 import type { DatabaseSync } from 'node:sqlite'
 import type { SyncManager } from '../services/mail/syncManager'
 import type { AnalysisPipeline } from '../services/ai/pipeline'
@@ -78,7 +79,41 @@ export function registerIpc(
 
   // 跨校对标库：DB 走 v30 迁移，抓取用隐藏 BrowserWindow（services/benchmark/fetcher）
   const benchmarkService = new BenchmarkService(db, store)
-  registerBenchIpc(ipcMain, benchmarkService)
+  registerBenchIpc(ipcMain, benchmarkService, {
+    /**
+     * 选一份文章列表读进来。
+     *
+     * 只读文本，不落盘、不解析格式——链接的识别交给服务层，
+     * 这里换什么工具导出的表格都行，只要能读出文字。
+     */
+    pickTextFile: async () => {
+      const picked = await dialog.showOpenDialog({
+        title: '选择公众号文章列表（CSV / TXT，工具导出的表格直接选）',
+        properties: ['openFile'],
+        filters: [
+          { name: '文章列表', extensions: ['csv', 'txt', 'tsv', 'md', 'json', 'html', 'htm'] },
+          { name: '全部文件', extensions: ['*'] }
+        ]
+      })
+      if (picked.canceled || picked.filePaths.length === 0) return null
+      const file = picked.filePaths[0]
+      const buf = readFileSync(file)
+      // 几千条链接也就几 MB；上百 MB 的多半是选错了文件，别让界面卡死
+      if (buf.length > 80 * 1024 * 1024) {
+        throw new Error('文件超过 80 MB，多半不是文章列表。请只选工具导出的那个 CSV。')
+      }
+      let text = buf.toString('utf8')
+      // Excel 另存的中文 CSV 常是 GBK：按 UTF-8 解会出现替换字符，换成 GBK 再读一次
+      if (text.includes('\uFFFD')) {
+        try {
+          text = new TextDecoder('gbk').decode(buf)
+        } catch {
+          // 环境不支持 GBK 就沿用 UTF-8 的结果，能读到多少算多少
+        }
+      }
+      return { path: file, text }
+    }
+  })
 
   // QCE 运行集目录：打开资源管理器 / 手动指定 QQ.exe（两者都要 electron 的 shell 与 dialog）
   ipcMain.handle(IM_IPC.imQceReveal, () => {

@@ -23,6 +23,7 @@ import {
   CloudDownloadOutlined,
   EnvironmentOutlined,
   FileTextOutlined,
+  FolderOpenOutlined,
   InboxOutlined,
   PlayCircleOutlined,
   PlusOutlined,
@@ -287,7 +288,10 @@ function BenchmarkPage(): JSX.Element {
     let fetched = 0
     let activities = 0
     let blocked = false
-    for (let round = 0; round < 4; round++) {
+    // 一次推 13 轮、每轮 15 篇，约 200 篇。
+    // 全量导入之后队列常有几百上千条，按原来的 60 篇截断，用户得点十几次；
+    // 但也别无限跑——中途撞上验证，跑得越久浪费越多。
+    for (let round = 0; round < 13; round++) {
       const s = await window.api.benchStats()
       // unreachable 也要算活：它们在主进程里会被放回队列重试，
       // 如果只看 pending，剩下一条打不开的死链就永远轮不到重试
@@ -304,7 +308,7 @@ function BenchmarkPage(): JSX.Element {
     }
     // 被拦了就别接着抽：抽的是已经采到的正文，跟搜索无关，但这时候
     // 整条链路都该停下来让人歇一会儿，免得连着两条红字
-    for (let round = 0; round < 4 && !blocked; round++) {
+    for (let round = 0; round < 13 && !blocked; round++) {
       if ((await window.api.benchStats()).unparsed <= 0) break
       const r = await window.api.benchExtract(15)
       activities += r.activities
@@ -478,6 +482,27 @@ function BenchmarkPage(): JSX.Element {
       if (r.duplicated) parts.push(`重复 ${r.duplicated} 篇`)
       if (r.invalid) parts.push(`无法识别 ${r.invalid} 条`)
       return `已入队：${parts.join('，')}`
+    })
+  }
+
+  /**
+   * 整份文件导入。
+   *
+   * 一个号的历史列表动辄几百上千条，粘贴框放不下，也不该让人手动复制。
+   * 文件里如果有标题和时间（工具导出的 CSV 都有），会一起落库——
+   * 这样正文还没抓的时候，列表也能先显出「这个号有多少篇」。
+   */
+  const doImportFile = (): void => {
+    void run('import', async () => {
+      const r = await window.api.benchImportFile()
+      if (r.canceled) return ''
+      const name = r.file.split(/[\\/]/).pop() ?? '文件'
+      const parts = [`新增 ${r.accepted} 篇`]
+      if (r.duplicated) parts.push(`重复 ${r.duplicated} 篇`)
+      if (r.invalid) parts.push(`无法识别 ${r.invalid} 条`)
+      setImportOpen(false)
+      setImportText('')
+      return `${name}：${parts.join('，')}`
     })
   }
 
@@ -990,7 +1015,7 @@ function BenchmarkPage(): JSX.Element {
           >
             抽字段{stats?.unparsed ? `（${stats.unparsed}）` : ''}
           </Button>
-          <Tooltip title="把待采集、待抽取的都推完，一次最多 60 篇；撞上验证会自动停">
+          <Tooltip title="把待采集、待抽取的都推完，一次最多 200 篇；撞上验证会自动停">
             <Button
               icon={<PlayCircleOutlined />}
               loading={busy === 'drain'}
@@ -1638,6 +1663,20 @@ function BenchmarkPage(): JSX.Element {
         <Typography.Paragraph type="secondary">
           一行一个链接，也可以直接粘一段带链接的文字。只会认 mp.weixin.qq.com 的文章链接，其余内容忽略。
         </Typography.Paragraph>
+        <Typography.Paragraph type="secondary">
+          有工具导出的完整文章列表（CSV，一般带 title、url、time 三列）？直接选文件，标题和时间会一起进来。
+          工具负责把公众号历史翻全，这里负责抓正文、抽字段。
+        </Typography.Paragraph>
+        <div style={{ marginBottom: 12 }}>
+          <Button
+            icon={<FolderOpenOutlined />}
+            loading={busy === 'import'}
+            disabled={!!busy && busy !== 'import'}
+            onClick={doImportFile}
+          >
+            选 CSV / TXT 文件
+          </Button>
+        </div>
         <Input.TextArea
           rows={14}
           value={importText}

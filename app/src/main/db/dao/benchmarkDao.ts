@@ -313,15 +313,31 @@ function toArticleInfo(r: ArticleRow): BenchArticleInfo {
 /** 入队；返回 true 表示新入队，false 表示已在库里 */
 export function enqueueArticle(
   db: DatabaseSync,
-  input: { urlKey: string; url: string; sourceId: number | null; hintSchool?: string }
+  input: {
+    urlKey: string
+    url: string
+    sourceId: number | null
+    hintSchool?: string
+    /** 从 CSV 导入时能先拿到的标题，抓正文后会被页面上的标题覆盖 */
+    title?: string
+    /** 同上，CSV 的发布时间列 */
+    publishedAt?: string | null
+  }
 ): boolean {
   const info = db
     .prepare(
-      `INSERT INTO bench_article (source_id, url_key, url, hint_school)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO bench_article (source_id, url_key, url, hint_school, title, published_at)
+       VALUES (?, ?, ?, ?, ?, ?)
        ON CONFLICT(url_key) DO NOTHING`
     )
-    .run(input.sourceId, input.urlKey, input.url, input.hintSchool ?? '')
+    .run(
+      input.sourceId,
+      input.urlKey,
+      input.url,
+      input.hintSchool ?? '',
+      input.title ?? '',
+      input.publishedAt ?? null
+    )
   return info.changes > 0
 }
 

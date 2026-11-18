@@ -42,6 +42,7 @@ import * as dao from '../../db/dao/benchmarkDao'
 import { composeBrief } from './brief'
 import { buildReportHtml } from './report'
 import { extractByRules, offTopicReason } from './rule-extract'
+import { parseLinkRows } from './link-import'
 import { fetchArticle } from './fetcher'
 import { VERIFY_BLOCKED } from './page'
 import { extractActivity } from './extractor'
@@ -108,18 +109,20 @@ export class BenchmarkService {
   // ---------------- 文章 ----------------
 
   /**
-   * 批量入队。接受整段文本：一行一个链接，或直接从聊天记录里粘一段带链接的话都行，
-   * 用正则扫出所有 mp.weixin.qq.com 链接，其余字符忽略。
+   * 批量入队。接受整段文本：一行一个链接、从聊天记录里连文字一起粘，
+   * 或者 wechatDownload 导出的 CSV 整份内容。
+   *
+   * CSV 里的标题和时间会先落库。正文还没抓的时候，列表至少能看出
+   * 这个号有多少篇、都是什么时候发的，而不是一片空白。
    */
   importLinks(raw: string): BenchImportResult {
-    const urls = raw.match(/https?:\/\/mp\.weixin\.qq\.com\/s[^\s"'<>\]]*/g) ?? []
+    const rows = parseLinkRows(raw)
     let accepted = 0
     let duplicated = 0
     let invalid = 0
     const seen = new Set<string>()
-    for (const url of urls) {
-      const clean = url.split('#')[0]
-      const key = articleUrlKey(clean)
+    for (const row of rows) {
+      const key = articleUrlKey(row.url)
       if (!key) {
         invalid += 1
         continue
@@ -130,7 +133,14 @@ export class BenchmarkService {
         continue
       }
       seen.add(key)
-      if (dao.enqueueArticle(this.db, { urlKey: key, url: clean, sourceId: null })) accepted += 1
+      const ok = dao.enqueueArticle(this.db, {
+        urlKey: key,
+        url: row.url,
+        sourceId: null,
+        title: row.title,
+        publishedAt: row.publishedAt
+      })
+      if (ok) accepted += 1
       else duplicated += 1
     }
     return { accepted, duplicated, invalid }

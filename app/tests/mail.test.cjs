@@ -94,7 +94,7 @@ async function main() {
   console.log('== 搜索与过滤 ==')
   await run('关键词命中主题 / 发件人 / 正文纯文本', () => {
     assert.equal(emailsDao.searchEmails(db, { accountId: accId, keyword: '会议邀请' }).total, 5)
-    assert.equal(emailsDao.searchEmails(db, { accountId: accId, keyword: 'teacher@shanghaitech' }).total, 8)
+    assert.equal(emailsDao.searchEmails(db, { accountId: accId, keyword: 'teacher@example.com' }).total, 8)
     assert.equal(emailsDao.searchEmails(db, { accountId: accId, keyword: '独一无二的正文关键词' }).total, 1)
   })
   await run('LIKE 特殊字符被转义（% 不当作通配符）', () => {

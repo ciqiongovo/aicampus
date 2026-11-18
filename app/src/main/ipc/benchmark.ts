@@ -16,6 +16,16 @@ export interface BenchIpcMainLike {
   handle(channel: string, listener: (event: unknown, ...args: any[]) => unknown): void
 }
 
+/**
+ * 选文件并读出文本的能力，由宿主注入。
+ *
+ * 不直接 import electron：这段注册逻辑要能脱离 Electron 单测，
+ * 「弹框、读盘」本来也是宿主的事，服务层不该知道窗口在哪。
+ */
+export interface BenchFilePicker {
+  pickTextFile?: () => Promise<{ path: string; text: string } | null>
+}
+
 function asFilter(value: unknown): BenchArticleFilter {
   const raw = (value ?? {}) as Record<string, unknown>
   const pick = (key: string): string | undefined =>
@@ -48,7 +58,11 @@ function progressTo(event: unknown, label: string) {
   }
 }
 
-export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkService): void {
+export function registerBenchIpc(
+  ipcMain: BenchIpcMainLike,
+  service: BenchmarkService,
+  deps: BenchFilePicker = {}
+): void {
   ipcMain.handle(BENCH_IPC.benchSources, () => service.sources())
 
   ipcMain.handle(BENCH_IPC.benchSourceAdd, (_e, input: unknown) => {
@@ -82,6 +96,20 @@ export function registerBenchIpc(ipcMain: BenchIpcMainLike, service: BenchmarkSe
   ipcMain.handle(BENCH_IPC.benchImportLinks, (_e, text: unknown) =>
     service.importLinks(typeof text === 'string' ? text : '')
   )
+
+  /**
+   * 整份文件导入。
+   *
+   * 工具导出的列表动辄几千行，粘贴框扛不住，也不该让人手动复制。
+   * 取消选文件不算失败，返回 canceled 让界面安静地什么都不做。
+   */
+  ipcMain.handle(BENCH_IPC.benchImportFile, async () => {
+    const empty = { canceled: true, file: '', accepted: 0, duplicated: 0, invalid: 0 }
+    if (!deps.pickTextFile) return empty
+    const picked = await deps.pickTextFile()
+    if (!picked) return empty
+    return { canceled: false, file: picked.path, ...service.importLinks(picked.text) }
+  })
 
   ipcMain.handle(BENCH_IPC.benchFetch, (_e, limit: unknown) =>
     service.runFetch(typeof limit === 'number' ? limit : 20, progressTo(_e, '采集正文'))
