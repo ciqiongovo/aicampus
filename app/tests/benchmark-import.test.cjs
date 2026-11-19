@@ -106,5 +106,142 @@ run('末尾粘着句读和右括号也能清掉', () => {
   assert.ok(articleUrlKey(rows[0].url))
 })
 
+// ---------------- 中文表头 / 公众号名 / Excel 导出 ----------------
+
+run('中文表头：公众号名在第一列也不会被当成标题', () => {
+  const text = [
+    '公众号名称,文章标题,文章链接,发布时间,阅读数',
+    `上海交通大学学生会,"迎新晚会，我们来啦",${url(2650238700)},2025-09-10 19:30:00,1200`,
+    `上海交通大学学生会,社团招新,${url(2650238701)},2025-09-12 08:00:00,800`
+  ].join('\n')
+  const rows = parseLinkRows(text)
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].title, '迎新晚会，我们来啦')
+  assert.equal(rows[0].account, '上海交通大学学生会')
+  assert.equal(rows[0].publishedAt, '2025-09-10 19:30:00')
+  assert.equal(rows[1].title, '社团招新')
+})
+
+run('中文表头：列顺序换了也按表头取值', () => {
+  const text = [
+    '发布时间,文章链接,公众号名称,文章标题',
+    `2025/9/1 12:00,${url(2650238710)},同济大学团委,开学第一课`
+  ].join('\n')
+  const rows = parseLinkRows(text)
+  assert.equal(rows[0].title, '开学第一课')
+  assert.equal(rows[0].account, '同济大学团委')
+  assert.equal(rows[0].publishedAt, '2025-09-01 12:00:00')
+})
+
+run('没有表头：同一列重复出现的公众号名不会被当成标题', () => {
+  const text = [
+    `复旦大学学生会,迎新晚会,${url(2650238720)},2025-09-02 19:00:00`,
+    `复旦大学学生会,社团招新嘉年华,${url(2650238721)},2025-09-03 19:00:00`,
+    `复旦大学学生会,新生答疑,${url(2650238722)},2025-09-04 19:00:00`
+  ].join('\n')
+  const rows = parseLinkRows(text)
+  assert.equal(rows.length, 3)
+  assert.equal(rows[0].account, '复旦大学学生会')
+  assert.equal(rows[0].title, '迎新晚会')
+  assert.equal(rows[1].title, '社团招新嘉年华')
+})
+
+run('「2026年10月11日」这种写法也认', () => {
+  const rows = parseLinkRows(`标题,${url(2650238730)},2026年10月11日 09:05`)
+  assert.equal(rows[0].publishedAt, '2026-10-11 09:05:00')
+})
+
+run('Excel 把日期存成数字时按序列号换算', () => {
+  // 45292 = 2024-01-01（Excel 的 1899-12-30 起算）
+  const rows = parseLinkRows(`标题,${url(2650238740)},45292.5`)
+  assert.equal(rows[0].publishedAt, '2024-01-01 12:00:00')
+})
+
+run('表头行本身不会变成一篇文章', () => {
+  const rows = parseLinkRows('公众号名称,文章标题,文章链接,发布时间')
+  assert.equal(rows.length, 0)
+})
+
+// ---------------- xlsx ----------------
+
+const { xlsxToCsv } = require('../.test-out/main/services/benchmark/xlsx.js')
+
+/** 造一个最小的 xlsx（zip + 两个 XML），够测「解压 → 读表」这条链 */
+function makeXlsx(rows) {
+  const zlib = require('node:zlib')
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const shared = []
+  const sheetRows = rows
+    .map((cells, r) => {
+      const tds = cells
+        .map((cell, c) => {
+          const ref = `${String.fromCharCode(65 + c)}${r + 1}`
+          if (typeof cell === 'number') return `<c r="${ref}"><v>${cell}</v></c>`
+          shared.push(cell)
+          return `<c r="${ref}" t="s"><v>${shared.length - 1}</v></c>`
+        })
+        .join('')
+      return `<row r="${r + 1}">${tds}</row>`
+    })
+    .join('')
+  const files = {
+    'xl/sharedStrings.xml': `<?xml version="1.0"?><sst>${shared
+      .map((s) => `<si><t>${esc(s)}</t></si>`)
+      .join('')}</sst>`,
+    'xl/worksheets/sheet1.xml': `<?xml version="1.0"?><worksheet><sheetData>${sheetRows}</sheetData></worksheet>`
+  }
+
+  const chunks = []
+  const central = []
+  let offset = 0
+  for (const [name, content] of Object.entries(files)) {
+    const raw = Buffer.from(content, 'utf8')
+    const data = zlib.deflateRawSync(raw)
+    const nameBuf = Buffer.from(name, 'utf8')
+    const local = Buffer.alloc(30)
+    local.writeUInt32LE(0x04034b50, 0)
+    local.writeUInt16LE(20, 4)
+    local.writeUInt16LE(8, 8)
+    local.writeUInt32LE(data.length, 18)
+    local.writeUInt32LE(raw.length, 22)
+    local.writeUInt16LE(nameBuf.length, 26)
+    chunks.push(local, nameBuf, data)
+
+    const cd = Buffer.alloc(46)
+    cd.writeUInt32LE(0x02014b50, 0)
+    cd.writeUInt16LE(20, 4)
+    cd.writeUInt16LE(20, 6)
+    cd.writeUInt16LE(8, 10)
+    cd.writeUInt32LE(data.length, 20)
+    cd.writeUInt32LE(raw.length, 24)
+    cd.writeUInt16LE(nameBuf.length, 28)
+    cd.writeUInt32LE(offset, 42)
+    central.push(Buffer.concat([cd, nameBuf]))
+    offset += local.length + nameBuf.length + data.length
+  }
+  const cdBuf = Buffer.concat(central)
+  const eocd = Buffer.alloc(22)
+  eocd.writeUInt32LE(0x06054b50, 0)
+  eocd.writeUInt16LE(Object.keys(files).length, 8)
+  eocd.writeUInt16LE(Object.keys(files).length, 10)
+  eocd.writeUInt32LE(cdBuf.length, 12)
+  eocd.writeUInt32LE(offset, 16)
+  return Buffer.concat([...chunks, cdBuf, eocd])
+}
+
+run('xlsx 能解出表头、标题、链接和时间', () => {
+  const buf = makeXlsx([
+    ['公众号名称', '文章标题', '文章链接', '发布时间'],
+    ['上海大学学生会', '迎新晚会预告', url(2650238750), 45678.5],
+    ['上海大学学生会', '社团招新', url(2650238751), '2025-09-20 10:00:00']
+  ])
+  const rows = parseLinkRows(xlsxToCsv(buf))
+  assert.equal(rows.length, 2)
+  assert.equal(rows[0].account, '上海大学学生会')
+  assert.equal(rows[0].title, '迎新晚会预告')
+  assert.equal(rows[0].publishedAt, '2025-01-21 12:00:00')
+  assert.equal(rows[1].publishedAt, '2025-09-20 10:00:00')
+})
+
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

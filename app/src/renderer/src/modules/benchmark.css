@@ -106,6 +106,18 @@
   align-items: center;
 }
 
+/* 导入抽屉里「这批属于哪所学校」一行：标签不被压缩，选择框吃掉剩余宽度 */
+.bench-import-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.bench-import-row .bench-field-label {
+  white-space: nowrap;
+}
+
 /* ---------- 学校卡片 ---------- */
 
 .bench-schools {

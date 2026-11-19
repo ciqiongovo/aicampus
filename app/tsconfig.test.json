@@ -52,6 +52,8 @@
     "src/shared/schools.ts",
     "src/main/services/benchmark/compare.ts",
     "src/main/services/benchmark/link-import.ts",
+    "src/main/services/benchmark/import-links.ts",
+    "src/main/services/benchmark/xlsx.ts",
     "src/main/services/benchmark/rule-extract.ts",
     "src/main/services/benchmark/brief.ts",
     "src/main/services/benchmark/report.ts",

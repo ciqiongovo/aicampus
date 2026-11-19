@@ -263,6 +263,8 @@ export interface BenchImportResult {
   duplicated: number
   /** 连 __biz 都解析不出来的条数 */
   invalid: number
+  /** 表里认出来的公众号个数；纯链接粘贴时为 0 */
+  accounts: number
 }
 
 export interface BenchImportFileResult extends BenchImportResult {
@@ -569,14 +571,14 @@ export interface BenchApi {
   benchSourceRemove(id: number): Promise<boolean>
   benchArticles(filter: BenchArticleFilter): Promise<BenchArticleInfo[]>
   benchArticle(id: number): Promise<BenchArticleDetail | null>
-  benchImportLinks(text: string): Promise<BenchImportResult>
+  benchImportLinks(text: string, school?: string): Promise<BenchImportResult>
   /**
-   * 选一个 CSV / TXT 文件整份导入。
+   * 选一个 CSV / TXT / xlsx 文件整份导入。
    *
    * 给「工具导出完整历史列表」这条路用：一个号动辄几百上千条，
    * 复制粘贴不现实，选文件读就是了。
    */
-  benchImportFile(): Promise<BenchImportFileResult>
+  benchImportFile(school?: string): Promise<BenchImportFileResult>
   benchFetch(limit?: number): Promise<BenchFetchResult>
   benchExtract(limit?: number): Promise<BenchExtractResult>
   benchStats(): Promise<BenchStats>

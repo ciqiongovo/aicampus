@@ -42,7 +42,7 @@ import * as dao from '../../db/dao/benchmarkDao'
 import { composeBrief } from './brief'
 import { buildReportHtml } from './report'
 import { extractByRules, offTopicReason } from './rule-extract'
-import { parseLinkRows } from './link-import'
+import { importLinkText } from './import-links'
 import { fetchArticle } from './fetcher'
 import { VERIFY_BLOCKED } from './page'
 import { extractActivity } from './extractor'
@@ -110,40 +110,17 @@ export class BenchmarkService {
 
   /**
    * 批量入队。接受整段文本：一行一个链接、从聊天记录里连文字一起粘，
-   * 或者 wechatDownload 导出的 CSV 整份内容。
+   * 或者 wechatDownload 这类工具导出的 CSV / xlsx 整份内容。
    *
-   * CSV 里的标题和时间会先落库。正文还没抓的时候，列表至少能看出
-   * 这个号有多少篇、都是什么时候发的，而不是一片空白。
+   * 表里带的标题、时间、公众号名会一起落库，公众号名还会顺手建源。
+   * 这样正文还没抓的时候，列表已经能看出「哪个号、多少篇、什么时候发的」，
+   * 学校的卡片也能立刻算进篇数——不用先采一遍才知道导进来了什么。
+   *
+   * school 是用户在这批导入里选的学校。导出的表通常只有号名（「XX大学学生会」），
+   * 校名靠猜，猜不中就让这一格空着；用户选了就以他选的为准。
    */
-  importLinks(raw: string): BenchImportResult {
-    const rows = parseLinkRows(raw)
-    let accepted = 0
-    let duplicated = 0
-    let invalid = 0
-    const seen = new Set<string>()
-    for (const row of rows) {
-      const key = articleUrlKey(row.url)
-      if (!key) {
-        invalid += 1
-        continue
-      }
-      // 同一批里重复粘贴的，算重复而不是新入队
-      if (seen.has(key)) {
-        duplicated += 1
-        continue
-      }
-      seen.add(key)
-      const ok = dao.enqueueArticle(this.db, {
-        urlKey: key,
-        url: row.url,
-        sourceId: null,
-        title: row.title,
-        publishedAt: row.publishedAt
-      })
-      if (ok) accepted += 1
-      else duplicated += 1
-    }
-    return { accepted, duplicated, invalid }
+  importLinks(raw: string, school = ''): BenchImportResult {
+    return importLinkText(this.db, raw, school)
   }
 
   articles(filter: BenchArticleFilter): BenchArticleInfo[] {
@@ -325,7 +302,7 @@ export class BenchmarkService {
       if (added) accepted += 1
       else duplicated += 1
     }
-    return { accepted, duplicated, invalid }
+    return { accepted, duplicated, invalid, accounts: 0 }
   }
 
   /** 本校同类活动：给一个外校做法，配几条本校的做法，才能比 */

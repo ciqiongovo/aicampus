@@ -93,8 +93,8 @@ export function registerBenchIpc(
     typeof id === 'number' ? service.article(id) : null
   )
 
-  ipcMain.handle(BENCH_IPC.benchImportLinks, (_e, text: unknown) =>
-    service.importLinks(typeof text === 'string' ? text : '')
+  ipcMain.handle(BENCH_IPC.benchImportLinks, (_e, text: unknown, school: unknown) =>
+    service.importLinks(typeof text === 'string' ? text : '', typeof school === 'string' ? school : '')
   )
 
   /**
@@ -103,12 +103,16 @@ export function registerBenchIpc(
    * 工具导出的列表动辄几千行，粘贴框扛不住，也不该让人手动复制。
    * 取消选文件不算失败，返回 canceled 让界面安静地什么都不做。
    */
-  ipcMain.handle(BENCH_IPC.benchImportFile, async () => {
-    const empty = { canceled: true, file: '', accepted: 0, duplicated: 0, invalid: 0 }
+  ipcMain.handle(BENCH_IPC.benchImportFile, async (_e, school: unknown) => {
+    const empty = { canceled: true, file: '', accepted: 0, duplicated: 0, invalid: 0, accounts: 0 }
     if (!deps.pickTextFile) return empty
     const picked = await deps.pickTextFile()
     if (!picked) return empty
-    return { canceled: false, file: picked.path, ...service.importLinks(picked.text) }
+    return {
+      canceled: false,
+      file: picked.path,
+      ...service.importLinks(picked.text, typeof school === 'string' ? school : '')
+    }
   })
 
   ipcMain.handle(BENCH_IPC.benchFetch, (_e, limit: unknown) =>

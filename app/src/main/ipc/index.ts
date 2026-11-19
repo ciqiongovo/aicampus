@@ -28,6 +28,7 @@ import { QceRuntime, isLegacyQqPath } from '../services/im/qceRuntime'
 import { IM_IPC } from '../../shared/im'
 import { ImService } from '../services/im/service'
 import { BenchmarkService } from '../services/benchmark/service'
+import { xlsxToCsv } from '../services/benchmark/xlsx'
 import { registerBenchIpc } from './benchmark'
 import { chatCompletion } from '../services/ai/analyzer'
 
@@ -88,10 +89,13 @@ export function registerIpc(
      */
     pickTextFile: async () => {
       const picked = await dialog.showOpenDialog({
-        title: '选择公众号文章列表（CSV / TXT，工具导出的表格直接选）',
+        title: '选择公众号文章列表（CSV / Excel / TXT，工具导出的表格直接选）',
         properties: ['openFile'],
         filters: [
-          { name: '文章列表', extensions: ['csv', 'txt', 'tsv', 'md', 'json', 'html', 'htm'] },
+          {
+            name: '文章列表',
+            extensions: ['csv', 'xlsx', 'txt', 'tsv', 'md', 'json', 'html', 'htm']
+          },
           { name: '全部文件', extensions: ['*'] }
         ]
       })
@@ -100,7 +104,11 @@ export function registerIpc(
       const buf = readFileSync(file)
       // 几千条链接也就几 MB；上百 MB 的多半是选错了文件，别让界面卡死
       if (buf.length > 80 * 1024 * 1024) {
-        throw new Error('文件超过 80 MB，多半不是文章列表。请只选工具导出的那个 CSV。')
+        throw new Error('文件超过 80 MB，多半不是文章列表。请只选工具导出的那份表格。')
+      }
+      // xlsx 是个 zip，按文本读只会得到乱码，必须先解出工作表再当 CSV 使
+      if (/\.xlsx$/i.test(file)) {
+        return { path: file, text: xlsxToCsv(buf) }
       }
       let text = buf.toString('utf8')
       // Excel 另存的中文 CSV 常是 GBK：按 UTF-8 解会出现替换字符，换成 GBK 再读一次

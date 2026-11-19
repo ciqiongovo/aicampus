@@ -274,7 +274,11 @@ interface ArticleRow {
 }
 
 const ARTICLE_SELECT = `
-  SELECT a.id, a.source_id, COALESCE(s.school, '') AS school, COALESCE(s.name, '') AS source_name,
+  SELECT a.id, a.source_id,
+         -- 导入时按学校标过的链接，正文还没采、源也还没挂上，这时用 hint_school 兜底：
+         -- 否则用户明明选了学校，下面却一片「待识别」，还以为标错了
+         COALESCE(NULLIF(s.school, ''), a.hint_school, '') AS school,
+         COALESCE(s.name, '') AS source_name,
          a.title, a.url, a.published_at, a.status, a.is_activity,
          COALESCE(act.kind, '') AS kind,
          act.week_no,
@@ -286,7 +290,7 @@ const ARTICLE_SELECT = `
     FROM bench_article a
     LEFT JOIN bench_source s ON s.id = a.source_id
     LEFT JOIN bench_activity act ON act.article_id = a.id
-    LEFT JOIN bench_school sch ON sch.name = s.school`
+    LEFT JOIN bench_school sch ON sch.name = COALESCE(NULLIF(s.school, ''), a.hint_school)`
 
 function toArticleInfo(r: ArticleRow): BenchArticleInfo {
   return {
@@ -345,7 +349,7 @@ export function listArticles(db: DatabaseSync, filter: BenchArticleFilter): Benc
   const where: string[] = []
   const args: (string | number)[] = []
   if (filter.school) {
-    where.push('s.school = ?')
+    where.push("COALESCE(NULLIF(s.school, ''), a.hint_school) = ?")
     args.push(filter.school)
   }
   if (filter.kind) {
@@ -470,6 +474,41 @@ export function ensureSourceByName(
   const info = db
     .prepare("INSERT INTO bench_source (name, school, category) VALUES (?, ?, 'student_union')")
     .run(clean, guessSchool(clean) || schoolOfKnownAccount(db, clean) || hintSchool)
+  return Number(info.lastInsertRowid)
+}
+
+/**
+ * 导入表格时按「公众号名」补源。
+ *
+ * 与抓完正文再补不同，这里名字是表里写好的，导入当场就能建源：
+ * 列表里「公众号」一列立刻有名字，学校的卡片也马上能算进篇数。
+ * 用户明确选了学校时以学校为准（导出的表常常没有校名，只有「XX大学学生会」这种号名），
+ * 但只补空着的学校，不会把已经归好的号改到别的学校去。
+ */
+export function ensureSourceForImport(
+  db: DatabaseSync,
+  name: string,
+  /** 用户在这批导入里选的学校；空串表示没选，交给名字去猜 */
+  school = ''
+): number | null {
+  const clean = name.trim()
+  if (!clean) return null
+  const existing = db.prepare('SELECT id, school FROM bench_source WHERE name = ? LIMIT 1').get(clean) as
+    | { id: number; school: string | null }
+    | undefined
+  if (existing) {
+    if (school && !existing.school) {
+      db.prepare("UPDATE bench_source SET school = ? WHERE id = ? AND COALESCE(school, '') = ''").run(
+        school,
+        existing.id
+      )
+    }
+    return existing.id
+  }
+  const resolved = school || guessSchool(clean) || schoolOfKnownAccount(db, clean)
+  const info = db
+    .prepare("INSERT INTO bench_source (name, school, category) VALUES (?, ?, 'student_union')")
+    .run(clean, resolved)
   return Number(info.lastInsertRowid)
 }
 
@@ -683,11 +722,14 @@ export function listKinds(db: DatabaseSync): string[] {
   return rows.map((r) => r.kind)
 }
 
-/** 库里出现过的学校，供筛选项使用 */
+/** 库里出现过的学校，供筛选项使用。导入时标过学校的链接也要算进来 */
 export function listSchools(db: DatabaseSync): string[] {
   const rows = db
     .prepare(
-      `SELECT DISTINCT school FROM bench_source WHERE school <> '' ORDER BY school`
+      `SELECT school FROM bench_source WHERE COALESCE(school, '') <> ''
+       UNION
+       SELECT hint_school AS school FROM bench_article WHERE COALESCE(hint_school, '') <> ''
+       ORDER BY school`
     )
     .all() as { school: string }[]
   return rows.map((r) => r.school)
@@ -704,7 +746,7 @@ export function briefRows(db: DatabaseSync, filter: BenchArticleFilter): BenchBr
   const where: string[] = ["a.status = 'parsed'", 'act.article_id IS NOT NULL']
   const args: (string | number)[] = []
   if (filter.school) {
-    where.push('s.school = ?')
+    where.push("COALESCE(NULLIF(s.school, ''), a.hint_school) = ?")
     args.push(filter.school)
   }
   if (filter.kind) {
@@ -726,7 +768,8 @@ export function briefRows(db: DatabaseSync, filter: BenchArticleFilter): BenchBr
   const limit = Math.min(Math.max(filter.limit ?? 200, 1), 500)
   const rows = db
     .prepare(
-      `SELECT a.id, COALESCE(s.school, '') AS school, COALESCE(s.name, '') AS source_name,
+      `SELECT a.id, COALESCE(NULLIF(s.school, ''), a.hint_school, '') AS school,
+              COALESCE(s.name, '') AS source_name,
               a.title, a.url, a.published_at,
               act.kind, act.week_no, act.start_at, act.location, act.org_form, act.audience,
               act.join_method, act.co_organizer, act.duration, act.scale,
@@ -736,7 +779,7 @@ export function briefRows(db: DatabaseSync, filter: BenchArticleFilter): BenchBr
          FROM bench_article a
          JOIN bench_source s ON s.id = a.source_id
          JOIN bench_activity act ON act.article_id = a.id
-         LEFT JOIN bench_school sch ON sch.name = s.school
+         LEFT JOIN bench_school sch ON sch.name = COALESCE(NULLIF(s.school, ''), a.hint_school)
         WHERE ${where.join(' AND ')}
         ORDER BY school, a.published_at DESC, a.id DESC
         LIMIT ?`
@@ -840,12 +883,13 @@ export function listSchoolInfos(
       `SELECT sch.id, sch.name, sch.short_name, COALESCE(sch.known_accounts, '[]') AS known_accounts,
               sch.is_home, sch.enabled,
               (SELECT COUNT(*) FROM bench_source s WHERE s.school = sch.name) AS source_count,
-              (SELECT COUNT(*) FROM bench_article a JOIN bench_source s2 ON s2.id = a.source_id
-                WHERE s2.school = sch.name) AS article_count,
+              -- 也算上「导入时标了学校、正文还没采」的链接：卡片上的篇数要和列表对得上
+              (SELECT COUNT(*) FROM bench_article a LEFT JOIN bench_source s2 ON s2.id = a.source_id
+                WHERE COALESCE(NULLIF(s2.school, ''), a.hint_school) = sch.name) AS article_count,
               (SELECT COUNT(*) FROM bench_activity act
                  JOIN bench_article a2 ON a2.id = act.article_id
-                 JOIN bench_source s3 ON s3.id = a2.source_id
-                WHERE s3.school = sch.name) AS activity_count
+                 LEFT JOIN bench_source s3 ON s3.id = a2.source_id
+                WHERE COALESCE(NULLIF(s3.school, ''), a2.hint_school) = sch.name) AS activity_count
          FROM bench_school sch
         ORDER BY sch.is_home DESC, sch.sort_order, sch.id`
     )

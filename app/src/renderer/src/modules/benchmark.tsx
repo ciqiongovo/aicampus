@@ -44,6 +44,7 @@ import type {
   BenchAuditResult,
   BenchBrief,
   BenchCompareTopic,
+  BenchImportResult,
   BenchProgressEvent,
   BenchProspectInfo,
   BenchSchoolInfo,
@@ -116,6 +117,10 @@ function BenchmarkPage(): JSX.Element {
   const [peers, setPeers] = useState<BenchArticleDetail[]>([])
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
+  /** 这批链接属于哪所学校。选填：表里带公众号名就按名字猜，猜不中才需要人选 */
+  const [importSchool, setImportSchool] = useState('')
+  /** 「采集范围」说明。负责人问过这个，写在聊天里没用，得在产品里能查到 */
+  const [scopeOpen, setScopeOpen] = useState(false)
   const [brief, setBrief] = useState<BenchBrief | null>(null)
   const [picked, setPicked] = useState<number[]>([])
   const [compare, setCompare] = useState<BenchArticleDetail[] | null>(null)
@@ -473,15 +478,28 @@ function BenchmarkPage(): JSX.Element {
 
   // ---------------- 第二步：采内容 ----------------
 
+  /**
+   * 导入结果的一句话。
+   *
+   * 必须说清「现在只是链接」：不说明的话，用户看到列表里出现几百行、
+   * 学校/类型却是空的，会以为导入坏了——其实只是还没采正文。
+   */
+  const importNote = (r: BenchImportResult): string => {
+    const parts = [`新增 ${r.accepted} 篇`]
+    if (r.duplicated) parts.push(`重复 ${r.duplicated} 篇`)
+    if (r.invalid) parts.push(`无法识别 ${r.invalid} 条`)
+    if (r.accounts) parts.push(`认出 ${r.accounts} 个公众号`)
+    const tail = r.accepted ? '；标题和时间已入库，点「采集正文」才抓内容、抽字段' : ''
+    return `已入队：${parts.join('，')}${tail}`
+  }
+
   const doImport = (): void => {
     void run('import', async () => {
-      const r = await window.api.benchImportLinks(importText)
+      if (!importText.trim()) return '粘贴框是空的，先贴链接或选文件'
+      const r = await window.api.benchImportLinks(importText, importSchool)
       setImportOpen(false)
       setImportText('')
-      const parts = [`新增 ${r.accepted} 篇`]
-      if (r.duplicated) parts.push(`重复 ${r.duplicated} 篇`)
-      if (r.invalid) parts.push(`无法识别 ${r.invalid} 条`)
-      return `已入队：${parts.join('，')}`
+      return importNote(r)
     })
   }
 
@@ -494,15 +512,12 @@ function BenchmarkPage(): JSX.Element {
    */
   const doImportFile = (): void => {
     void run('import', async () => {
-      const r = await window.api.benchImportFile()
+      const r = await window.api.benchImportFile(importSchool)
       if (r.canceled) return ''
       const name = r.file.split(/[\\/]/).pop() ?? '文件'
-      const parts = [`新增 ${r.accepted} 篇`]
-      if (r.duplicated) parts.push(`重复 ${r.duplicated} 篇`)
-      if (r.invalid) parts.push(`无法识别 ${r.invalid} 条`)
       setImportOpen(false)
       setImportText('')
-      return `${name}：${parts.join('，')}`
+      return `${name}：${importNote(r)}`
     })
   }
 
@@ -888,6 +903,9 @@ function BenchmarkPage(): JSX.Element {
             点某个学校的「一键采集」，它按「校名 + 学生会 / 团委」这类常见命名去搜，
             搜到的链接顺手采正文、抽字段。只搜不采就把下面的开关关掉。
             搜的是搜索引擎收录过的公开推文，不是这个号的全部历史。
+            <Typography.Link onClick={() => setScopeOpen(true)} style={{ marginLeft: 6 }}>
+              采集范围
+            </Typography.Link>
           </span>
         </div>
 
@@ -1648,6 +1666,35 @@ function BenchmarkPage(): JSX.Element {
         />
       </Drawer>
 
+      {/* ---------- 采集范围说明 ---------- */}
+      <Modal
+        open={scopeOpen}
+        title="采集范围：能搜到什么，搜不到什么"
+        footer={null}
+        width={580}
+        onCancel={() => setScopeOpen(false)}
+      >
+        <Typography.Paragraph>
+          <b>学校</b>：内置 {schoolList.length} 所上海本科院校，本校单独标出；清单外的学校可以自己在「账号」里加。
+        </Typography.Paragraph>
+        <Typography.Paragraph>
+          <b>公众号</b>：每所学校按「校名 + 学生会 / 团委 / 研究生会 / 学院」这类常见命名组合出十几个候选号。
+          点一次「找文章」查其中 5 个，查到的号会记住，下次优先查。
+        </Typography.Paragraph>
+        <Typography.Paragraph>
+          <b>文章</b>：只拿搜索引擎（百度）已经收录的公开推文。一个号一年发几十条，被收录的常常只有个位数，
+          所以这里看到的是「能搜到的那些」，不是这个号的全部历史。
+        </Typography.Paragraph>
+        <Typography.Paragraph>
+          <b>正文</b>：逐篇打开文章页取正文，每篇间隔 2.5–5.5 秒，一次跑 20 篇；连续撞上 3 次人机验证会自动停手，
+          过二三十分钟再跑。慢是为了不把整批都撞死。
+        </Typography.Paragraph>
+        <Typography.Paragraph style={{ marginBottom: 0 }}>
+          <b>要全量历史</b>：用 wechatDownload 这类工具把某个号的历史导出成 CSV / Excel，再到「导入链接」里选那份文件。
+          导入后列表立刻能看到标题和时间，只是类型、地点这些字段要等「采集正文」和「抽字段」之后才有。
+        </Typography.Paragraph>
+      </Modal>
+
       {/* ---------- 导入链接 ---------- */}
       <Drawer
         open={importOpen}
@@ -1661,28 +1708,44 @@ function BenchmarkPage(): JSX.Element {
         }
       >
         <Typography.Paragraph type="secondary">
-          一行一个链接，也可以直接粘一段带链接的文字。只会认 mp.weixin.qq.com 的文章链接，其余内容忽略。
+          一行一个链接，也可以直接粘一段带链接的文字。只认 mp.weixin.qq.com 的文章链接，其余内容忽略。
         </Typography.Paragraph>
         <Typography.Paragraph type="secondary">
-          有工具导出的完整文章列表（CSV，一般带 title、url、time 三列）？直接选文件，标题和时间会一起进来。
-          工具负责把公众号历史翻全，这里负责抓正文、抽字段。
+          工具（如 wechatDownload）导出的整份文章列表，CSV、Excel 都能直接选：标题、发布时间、
+          公众号名会一起进来，公众号名还会顺手建成一个号。工具负责把历史翻全，这里负责抓正文、抽字段。
         </Typography.Paragraph>
         <div style={{ marginBottom: 12 }}>
+          <div className="bench-import-row">
+            <span className="bench-field-label">这批属于</span>
+            <Select
+              style={{ flex: 1, minWidth: 200 }}
+              placeholder="哪所学校（选填，表里没校名时再填）"
+              allowClear
+              showSearch
+              value={importSchool || undefined}
+              onChange={(v) => setImportSchool(v ?? '')}
+              options={schoolList.map((s) => ({ value: s.name, label: s.name }))}
+            />
+          </div>
           <Button
             icon={<FolderOpenOutlined />}
             loading={busy === 'import'}
             disabled={!!busy && busy !== 'import'}
             onClick={doImportFile}
           >
-            选 CSV / TXT 文件
+            选 CSV / Excel 文件
           </Button>
         </div>
         <Input.TextArea
-          rows={14}
+          rows={12}
           value={importText}
           onChange={(e) => setImportText(e.target.value)}
           placeholder="https://mp.weixin.qq.com/s?__biz=...&mid=...&idx=1&sn=..."
         />
+        <Typography.Paragraph type="secondary" style={{ marginTop: 10, marginBottom: 0 }}>
+          导入只是把链接收进来：列表里马上能看到标题和时间，但要抓正文、抽类型，还得点第 2 步的
+          「采集正文」。
+        </Typography.Paragraph>
       </Drawer>
     </div>
   )
