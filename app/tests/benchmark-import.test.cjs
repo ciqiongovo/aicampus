@@ -243,5 +243,16 @@ run('xlsx 能解出表头、标题、链接和时间', () => {
   assert.equal(rows[1].publishedAt, '2025-09-20 10:00:00')
 })
 
+run('没有表头时，标题里带「大学」不会被当成公众号名', () => {
+  const rows = parseLinkRows(`上海大学迎新晚会,${url(2650238760)},2025-09-10 19:00:00`)
+  assert.equal(rows[0].title, '上海大学迎新晚会')
+  assert.equal(rows[0].account, '')
+})
+
+run('没有表头时，以组织后缀收尾的短文本认作公众号名', () => {
+  const rows = parseLinkRows(`复旦大学学生会,${url(2650238761)},2025-09-10 19:00:00`)
+  assert.equal(rows[0].account, '复旦大学学生会')
+})
+
 console.log(`\n${passed} passed, ${failed} failed`)
 process.exit(failed ? 1 : 0)

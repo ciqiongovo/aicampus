@@ -25,8 +25,13 @@ const ARTICLE_URL = /https?:\/\/mp\.weixin\.qq\.com\/s[?/][^\s"'<>\])，。；�
 // 再要求一个空格才配时间，就会只解析出日期、时间悄悄变成 00:00:00。
 const TIME = /(\d{4})\s*[-/年.]\s*(\d{1,2})\s*[-/月.]\s*(\d{1,2})\s*日?(?:[ T]?(\d{1,2}):(\d{2})(?::(\d{2}))?)?/
 
-/** 公众号名常见字样：用来在没表头时认列，也用来判断某个格子像不像号名 */
-const ACCOUNT_HINT = /(学生会|研究生会|团委|共青团|青年|大学|学院|书院|社团|社联|研究生|招生|教务)/
+/**
+ * 号名一般以组织后缀收尾，中间不带标点；带「晚会 / 讲座 / 招新」这些词的，
+ * 多半是标题而不是号名。这条边界不划清，一行没表头的「上海大学迎新晚会」
+ * 会被当成公众号，标题反而变空。
+ */
+const ACCOUNT_TAIL = /(学生会|研究生会|团委|共青团|青年|学院|书院|社团|社联|大学|教务|招生)$/
+const EVENT_WORD = /(活动|晚会|大会|讲座|比赛|招新|预告|通知|招募|报名|沙龙|论坛|典礼|仪式|节|赛)/
 
 export interface ParsedLink {
   url: string
@@ -170,7 +175,7 @@ function repeatedColumn(records: TableRecord[]): number {
       .map((r) => (r.cells[col] ?? '').trim())
       .filter((v) => v && v.length <= 30 && !v.includes('mp.weixin.qq.com') && !normalizeTime(v))
     if (values.length < 3) continue
-    if (new Set(values).size === 1 && ACCOUNT_HINT.test(values[0])) return col
+    if (new Set(values).size === 1 && isAccountLike(values[0])) return col
   }
   return -1
 }
@@ -185,7 +190,10 @@ function firstTime(cells: string[]): string | null {
 
 function isAccountLike(cell: string): boolean {
   const v = cell.trim()
-  return v.length >= 2 && v.length <= 30 && ACCOUNT_HINT.test(v) && !/^\d+$/.test(v)
+  if (v.length < 2 || v.length > 18) return false
+  if (/[，。、！？：；\s]/.test(v)) return false
+  if (EVENT_WORD.test(v)) return false
+  return ACCOUNT_TAIL.test(v)
 }
 
 /**
