@@ -2,9 +2,10 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Badge, Button, Layout, Menu, Space, Tag, Tooltip, Typography } from 'antd'
 import type { MenuProps } from 'antd'
-import { DesktopOutlined, MenuOutlined, MoonOutlined, PushpinFilled, PushpinOutlined, CloseOutlined, SunOutlined, AppstoreOutlined } from '@ant-design/icons'
+import { DesktopOutlined, MenuOutlined, MoonOutlined, PushpinFilled, PushpinOutlined, CloseOutlined, SunOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { modules } from './modules/registry'
+import { OnboardingGuide, hasSeenGuide, markGuideSeen } from './modules/onboarding'
 import { PREF } from './prefs'
 import type { ModuleManifest } from './modules/types'
 import { AiSettingsPage } from './modules/aiSettings'
@@ -61,6 +62,8 @@ export default function App(): JSX.Element {
   const [navVisible, setNavVisible] = useState(() => localStorage.getItem(PREF.navVisible) !== 'false')
   const [navPinned, setNavPinned] = useState(() => localStorage.getItem(PREF.navPinned) !== 'false')
   const [visited, setVisited] = useState<Set<string>>(() => new Set([location.pathname]))
+  // 第一次打开先给一版引导。学长原话：「一打开来我第一眼不太清楚这个东西要怎么用」
+  const [guideOpen, setGuideOpen] = useState(() => !hasSeenGuide())
   useEffect(() => { setVisited((previous) => previous.has(location.pathname) ? previous : new Set([...previous, location.pathname])) }, [location.pathname])
   useEffect(() => { localStorage.setItem(PREF.navVisible, String(navVisible)) }, [navVisible])
   useEffect(() => { localStorage.setItem(PREF.navPinned, String(navPinned)) }, [navPinned])
@@ -70,11 +73,15 @@ export default function App(): JSX.Element {
     return () => { live = false }
   }, [])
   /*
-   * 侧栏分两档。
+   * 侧栏分三组。
    *
-   * 第一档只放「看兄弟高校在办什么」这条主线上的板块——对标、AI、日程、
-   * 待办、资料；个人资讯工具（面板、日报、邮件）收进「更多」，设置钉在最后。
-   * 九个板块平铺时，用户第一眼看不出这个软件是干什么的。
+   * 九个板块平铺的时候，第一眼看不出这个软件是干什么的——这是学长看过之后
+   * 原话说的「功能比较杂、比较混乱」。现在收成：
+   *   顶部：对话（JARVIS），唯一一个不分组的东西，也是启动页
+   *   消息来源：公众号对标、邮件
+   *   工作台：面板、日程、待办、资料
+   *   更多：日报
+   * 设置钉在最后。
    */
   const menuItems: MenuProps['items'] = useMemo(() => {
     const item = (m: ModuleManifest) => ({
@@ -82,19 +89,15 @@ export default function App(): JSX.Element {
       icon: m.icon,
       label: <Space size={6}>{m.title}{!m.enabled && <Tag>规划中</Tag>}</Space>
     })
-    const main = modules.filter((m) => m.id !== 'settings' && m.nav !== 'more')
-    const more = modules.filter((m) => m.nav === 'more')
-    const settings = modules.find((m) => m.id === 'settings')
-    const out: NonNullable<MenuProps['items']> = main.map(item)
-    if (more.length) {
-      out.push({ type: 'divider' })
-      out.push({
-        key: 'nav-more',
-        icon: <AppstoreOutlined />,
-        label: '更多',
-        children: more.map(item)
-      } as NonNullable<MenuProps['items']>[number])
+    const out: NonNullable<MenuProps['items']> = modules
+      .filter((m) => m.id !== 'settings' && !m.group)
+      .map(item)
+    for (const [key, label] of [['source', '消息来源'], ['work', '工作台'], ['more', '更多']] as const) {
+      const list = modules.filter((m) => m.group === key)
+      if (!list.length) continue
+      out.push({ type: 'group', key: 'group-' + key, label, children: list.map(item) })
     }
+    const settings = modules.find((m) => m.id === 'settings')
     if (settings) {
       out.push({ type: 'divider' })
       out.push(item(settings))
@@ -103,10 +106,6 @@ export default function App(): JSX.Element {
   }, [])
   const fallbackRoute = modules.find((m) => m.enabled)?.route ?? '/jarvis'
   const currentKey = '/' + (location.pathname.split('/')[1] ?? '')
-  // 落在「更多」里的板块时，进来就把这组展开——否则用户会以为页面丢了
-  const defaultOpenKeys = modules.some((m) => m.nav === 'more' && m.route === location.pathname)
-    ? ['nav-more']
-    : []
   const validRoute = modules.some((m) => m.route === location.pathname) || location.pathname === '/jarvis/settings'
   useEffect(() => { if (!validRoute) navigate(fallbackRoute, { replace: true }) }, [validRoute, fallbackRoute, navigate])
 
@@ -124,16 +123,17 @@ export default function App(): JSX.Element {
     {navVisible && <Sider width={siderWidth} theme={resolved === 'dark' ? 'dark' : 'light'} className={navPinned ? 'app-sider' : 'app-sider app-nav-floating'} style={{ borderRight: '1px solid var(--line)' }}>
       <div className="app-logo"><img className="app-logo-icon" src={appIcon} alt="知枢" /><div className="app-logo-text"><div className="app-logo-title">知枢</div><div className="app-logo-sub">高校活动对标</div></div></div>
       <div className="app-nav-controls"><Tooltip title={navPinned ? '取消固定，选择模块后自动隐藏' : '固定导航，保持展开'}><Button type="text" className={navPinned ? 'app-nav-btn app-nav-btn-active' : 'app-nav-btn'} aria-label={navPinned ? '取消固定导航' : '固定导航'} icon={navPinned ? <PushpinFilled /> : <PushpinOutlined />} onClick={() => setNavPinned((p) => !p)} /></Tooltip><Button type="text" className="app-nav-btn" aria-label="隐藏导航" icon={<CloseOutlined />} onClick={() => setNavVisible(false)} /></div>
-      <Menu theme={resolved === 'dark' ? 'dark' : 'light'} mode="inline" selectedKeys={[currentKey]} defaultOpenKeys={defaultOpenKeys} items={menuItems} onClick={({ key }) => { navigate(key); if (!navPinned) setNavVisible(false) }} />
+      <Menu theme={resolved === 'dark' ? 'dark' : 'light'} mode="inline" selectedKeys={[currentKey]} items={menuItems} onClick={({ key }) => { navigate(key); if (!navPinned) setNavVisible(false) }} />
     </Sider>}
     {navVisible && navPinned && <div className="app-sider-resizer" title="拖动调整导航宽度" onMouseDown={startSiderResize} onDoubleClick={() => setSiderWidth(200)} />}
     <Layout style={{ minWidth: 0 }}>
-      <Header className="app-header"><Space><Button type="text" className="app-header-btn" aria-label={navVisible ? '隐藏模块导航' : '显示模块导航'} icon={<MenuOutlined />} onClick={() => setNavVisible((v) => !v)} /><MailSyncBadge /></Space><Space><Tooltip title={`外观：${modeLabel}（点击切换 浅色 → 深色 → 跟随系统）`}><Button type="text" className="app-header-btn" aria-label={`切换外观，当前${modeLabel}`} icon={modeIcon} onClick={cycleMode} /></Tooltip><Tooltip title="切换配色包：多巴胺 / 经典"><Button size="small" type={palette === 'vivid' ? 'primary' : 'default'} onClick={() => setPalette(palette === 'vivid' ? 'classic' : 'vivid')} aria-label="切换配色包">{palette === 'vivid' ? '多巴胺' : '经典'}</Button></Tooltip><Typography.Text type="secondary">v{appInfo?.version ?? '0.3.0'}</Typography.Text></Space></Header>
+      <Header className="app-header"><Space><Button type="text" className="app-header-btn" aria-label={navVisible ? '隐藏模块导航' : '显示模块导航'} icon={<MenuOutlined />} onClick={() => setNavVisible((v) => !v)} /><MailSyncBadge /></Space><Space><Tooltip title="使用引导：三步看懂怎么用"><Button type="text" className="app-header-btn" aria-label="打开使用引导" icon={<QuestionCircleOutlined />} onClick={() => setGuideOpen(true)} /></Tooltip><Tooltip title={`外观：${modeLabel}（点击切换 浅色 → 深色 → 跟随系统）`}><Button type="text" className="app-header-btn" aria-label={`切换外观，当前${modeLabel}`} icon={modeIcon} onClick={cycleMode} /></Tooltip><Tooltip title="切换配色包：多巴胺 / 经典"><Button size="small" type={palette === 'vivid' ? 'primary' : 'default'} onClick={() => setPalette(palette === 'vivid' ? 'classic' : 'vivid')} aria-label="切换配色包">{palette === 'vivid' ? '多巴胺' : '经典'}</Button></Tooltip><Typography.Text type="secondary">v{appInfo?.version ?? '0.3.0'}</Typography.Text></Space></Header>
       <Content className="app-content">
         {/* Keep real selection, filters, iframe scroll and reading position across route changes. */}
         {modules.map((m) => (visited.has(m.route) || location.pathname === m.route) && <section key={m.id} className="app-module" hidden={location.pathname !== m.route} aria-hidden={location.pathname !== m.route}><ModulePage module={m} /></section>)}
         {location.pathname === '/jarvis/settings' && <AiSettingsPage />}
       </Content>
     </Layout>
+    <OnboardingGuide open={guideOpen} onClose={() => setGuideOpen(false)} onOpenSettings={() => { markGuideSeen(); setGuideOpen(false); navigate('/jarvis/settings') }} />
   </Layout>
 }

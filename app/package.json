@@ -1,6 +1,6 @@
 {
   "name": "zhishu",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "知枢 — 高校公众号活动对标与决策支持",
   "main": "./out/main/index.js",
   "private": true,

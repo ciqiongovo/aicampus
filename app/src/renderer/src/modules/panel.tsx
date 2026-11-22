@@ -724,7 +724,7 @@ const PanelPage = memo(function PanelPage(): JSX.Element {
 
 export const panelModule: ModuleManifest = {
   id: 'panel',
-  nav: 'more',
+  group: 'work',
   title: '面板',
   icon: <ThunderboltOutlined />,
   route: '/panel',

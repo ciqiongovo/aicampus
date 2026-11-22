@@ -244,6 +244,7 @@ function MaterialPage(): JSX.Element {
 
 export const materialsModule: ModuleManifest = {
   id: 'materials',
+  group: 'work',
   title: '资料',
   icon: <FolderOpenOutlined />,
   route: '/collection',

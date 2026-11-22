@@ -2174,8 +2174,9 @@ function ComparePanel({ brief }: { brief: BenchBrief }): JSX.Element {
 
 export const benchmarkModule: ModuleManifest = {
   id: 'benchmark',
-  // 导航上一个词就够：「公众号」只说了信息来源，说的是这件软件干什么
-  title: '对标',
+  // 放在「消息来源」里，不再占第一页：它是原料，不是这个软件的主角
+  group: 'source',
+  title: '公众号对标',
   icon: <BookOutlined />,
   route: '/benchmark',
   enabled: true,

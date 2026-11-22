@@ -987,7 +987,7 @@ export function DailyPage(): ReactElement {
 
 export const dailyModule: ModuleManifest = {
   id: 'daily',
-  nav: 'more',
+  group: 'more',
   title: '日报',
   icon: <CalendarOutlined />,
   route: '/daily',

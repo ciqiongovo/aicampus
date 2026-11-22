@@ -62,6 +62,7 @@ function fmtTime(iso: string | null | undefined): string {
 }
 
 const QUICK_PROMPTS = [
+  '看看别的学校这周在办什么活动',
   '帮我梳理一下最近的待办和截止时间',
   '检索信息流里待核实的内容',
   '今天的日报讲了什么？',

@@ -1022,7 +1022,7 @@ function MailPage(): JSX.Element {
 
 export const mailModule: ModuleManifest = {
   id: 'mail',
-  nav: 'more',
+  group: 'source',
   title: '邮件',
   icon: <MailOutlined />,
   route: '/mail',

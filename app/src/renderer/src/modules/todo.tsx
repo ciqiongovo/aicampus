@@ -4,6 +4,7 @@ import { TodoPage } from './todo/TodoPage'
 
 export const todoModule: ModuleManifest = {
   id: 'todo',
+  group: 'work',
   title: '待办',
   icon: <CheckSquareOutlined />,
   route: '/todo',

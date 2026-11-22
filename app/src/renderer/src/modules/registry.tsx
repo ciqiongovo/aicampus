@@ -12,18 +12,20 @@ import { settingsModule } from './settings'
 /**
  * 模块注册表：侧边栏导航、路由表、设置入口全部由此生成。
  *
- * 顺序即优先级。这个软件的主线是「看兄弟高校在办什么」，
- * 所以公众号对标放在第一位，原来自带的邮件/日程/待办退到后半段当辅助。
+ * 顺序即优先级，第一项就是启动页。
+ *
+ * 学长看过一版之后给了三条意见：一打开不知道干什么；公众号采集不该占着
+ * 第一页；整体功能杂而乱。所以起始页换回会对话的 JARVIS——它才是这个
+ * 软件的门面；公众号采集降成「消息来源」里的原料，和邮件并列。
  */
 export const modules: ModuleManifest[] = [
-  benchmarkModule,
-  panelModule,
-  dailyModule,
   jarvisModule,
+  benchmarkModule,
+  mailModule,
+  panelModule,
   scheduleModule,
   todoModule,
-  mailModule,
   materialsModule,
+  dailyModule,
   settingsModule
 ]
-

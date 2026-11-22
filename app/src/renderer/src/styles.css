@@ -55,6 +55,13 @@ body {
   padding: 4px 0; background: var(--surface);
   border-inline-end: 0 !important; border-radius: 0;
 }
+/* 分组标题：消息来源 / 工作台 / 更多。小一号、字距拉开，只当分隔用，不抢板块名 */
+.app-sider .ant-menu-item-group-title {
+  padding: 14px 16px 4px !important;
+  color: var(--text-3) !important;
+  font-size: 10.5px; line-height: 16px; letter-spacing: 0.12em;
+}
+.app-sider .ant-menu-item-group:first-of-type .ant-menu-item-group-title { padding-top: 8px !important; }
 .app-sider .ant-menu-item,
 .app-sider .ant-menu-submenu-title {
   position: relative;
