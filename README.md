@@ -10,7 +10,7 @@
 
 ## 别人怎么拿到它
 
-结论：**打开 [Releases](https://github.com/ciqiongovo/aicampus/releases)，下载最新的 `ZhiShu-1.0.4.exe`，双击就能用。**
+结论：**打开 [Releases](https://github.com/ciqiongovo/aicampus/releases)，下载最新的 `ZhiShu-1.0.5.exe`，双击就能用。**
 
 不需要安装、不需要装 Node、不需要联网。首次启动自带示例数据（13 所学校 / 39 场活动），
 打开先看到对话页，示例数据已经铺好，问一句就能查；数据写在 `%APPDATA%\ZhiShu`，
@@ -53,7 +53,7 @@ JARVIS 现在能直接查对标库（按学校、关键词、活动类型、日�
 
 ## 这一个文件里装了什么
 
-`ZhiShu-1.0.4.exe` 是单文件便携版：程序、界面和一份干净示例库
+`ZhiShu-1.0.5.exe` 是单文件便携版：程序、界面和一份干净示例库
 （`app/resources/demo.db`，29 校 / 42 源 / 93 篇 / 39 场，只有对标数据，
 没有邮件正文、账号和密钥）一起打进包里。首次启动时若本机还没有库，
 就把示例库铺到 `%APPDATA%\ZhiShu\zhishu.db`；已经有库则一律不动。

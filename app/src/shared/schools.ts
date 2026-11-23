@@ -208,3 +208,23 @@ export function findSchool(name: string): SchoolSeed {
   if (hit) return hit
   return { name, shortName: '', aliases: [name] }
 }
+
+/**
+ * 这个号名像不像属于这所学校。
+ *
+ * 为什么必须有这道校验：库里记着「某个号属于某校」不等于它真属于。
+ * 旧版只有百度一条路，搜「华东师范大学学生会」时，标题里带「华东师范」的
+ * 外校稿子也会被返回来（实测搜出过东北林大的「东林林院团委」、中学的
+ * 「上海市建青实验学校」），抓到作者名后又因为猜不出学校，被当成目标学校的号
+ * 记了下来。脏号一旦被记住，以后每一轮都会去采它。
+ *
+ * 判法用学校清单里的别名（全称、简称、常见写法）。宁可漏掉像「小医生Joy」
+ * 这种看不出校名的花名——那种号让用户手动指定就是了；自动跑时拿错学校的
+ * 数据，比少采几篇严重得多。
+ */
+export function belongsToSchool(account: string, school: string): boolean {
+  const seed = findSchool(school)
+  const name = account.replace(/\s+/g, '')
+  if (!name) return false
+  return seed.aliases.some((alias) => alias && name.includes(alias))
+}

@@ -16,6 +16,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type { BenchDiscoverResult } from '../../../shared/benchmark'
 import {
+  belongsToSchool,
   candidateAccounts,
   categoryOfOrg,
   findSchool,
@@ -82,9 +83,12 @@ export async function deepCollectSchool(
   if (!school) throw new Error('没指定学校')
 
   const limit = Math.min(Math.max(options.limit ?? 3, 1), DEEP_ACCOUNT_LIMIT)
-  const known = knownAccountsOf(db, school)
-  const accounts = (options.accounts?.length
-    ? options.accounts.map((a) => a.trim()).filter(Boolean)
+  // 用户手动点的号名原样信任；自动跑的号名要过一遍归属校验，
+  // 免得把旧版记下来的脏号（外校号、中学号）一路采下去
+  const manual = options.accounts?.length ? options.accounts.map((a) => a.trim()).filter(Boolean) : []
+  const known = knownAccountsOf(db, school).filter((n) => belongsToSchool(n, school))
+  const accounts = (manual.length
+    ? manual
     : mergeAccounts(known, candidateAccounts(findSchool(school)))
   ).slice(0, limit)
 
@@ -144,6 +148,16 @@ export async function deepCollectSchool(
     accountsHit += 1
     // 号名以搜狗认下的为准：用户猜的「XX大学学生会」可能真名是「团聚XX」
     const canonical = search.canonical || account
+    // 双保险：搜狗认出来的号如果明显不属于这所学校，这一批就不收了
+    if (!manual.length && !belongsToSchool(canonical, school)) {
+      accountsHit -= 1
+      markProspect(db, school, canonical, {
+        status: 'empty',
+        hitCount: 0,
+        note: `「${canonical}」看着不是这所学校的号，已跳过`
+      })
+      continue
+    }
     const sourceId = ensureSourceByName(db, canonical, school)
     // 试采只要几篇时，别为了「看一眼效果」先把一百篇全翻出来
     const queue = options.perAccount ? search.items.slice(0, options.perAccount) : search.items

@@ -27,11 +27,12 @@ import type {
   BenchSourceInfo,
   BenchStats
 } from '../../../shared/benchmark'
-import { articleUrlKey, guessSchool } from '../../../shared/benchmark'
+import { articleUrlKey } from '../../../shared/benchmark'
 import {
   HOME_SCHOOL,
   KNOWN_ACCOUNTS,
   SHANGHAI_SCHOOLS,
+  belongsToSchool,
   candidateAccounts,
   findSchool,
   mergeAccounts
@@ -386,13 +387,14 @@ export class BenchmarkService {
             sourceId
           })
           // 抓到真名了，记下来。下次找这所学校就不用再赌名字对不对。
-          // 但要先验证这个号确实属于这所学校：从「上海科技大学」的搜索里，
-          // 一样能搜出「北京科技大学」的文章，把后者记成上科大的号就错了。
-          if (outcome.author && item.hintSchool) {
-            const belonging = guessSchool(outcome.author)
-            if (!belonging || belonging === item.hintSchool) {
-              dao.rememberAccount(this.db, item.hintSchool, outcome.author)
-            }
+          //
+          // 但必须确认这个号确实属于这所学校：从「上海科技大学」的搜索里，
+          // 一样能搜出「北京科技大学」的文章。旧版只排除「猜出了别的学校」的情况，
+          // 而「东林林院团委」「上海市建青实验学校」这种猜不出校名的号就被放行了，
+          // 于是被错记到华东师大、华理名下，之后每一轮都去采它们的稿子。
+          // 现在改成「号名里必须带这所学校的名字（含简称）才记」，认不出就不记。
+          if (outcome.author && item.hintSchool && belongsToSchool(outcome.author, item.hintSchool)) {
+            dao.rememberAccount(this.db, item.hintSchool, outcome.author)
           }
           if (outcome.imageOnly) {
             dao.markSkipped(this.db, item.id, outcome.error)

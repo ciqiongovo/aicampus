@@ -19,6 +19,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import type { BenchDiscoverResult } from '../../../shared/benchmark'
 import { articleUrlKey } from '../../../shared/benchmark'
 import {
+  belongsToSchool,
   candidateAccounts,
   categoryOfOrg,
   findSchool,
@@ -121,8 +122,10 @@ export async function discoverSchool(
 
   const limit = Math.min(Math.max(input.limit ?? DEFAULT_ACCOUNT_LIMIT, 1), 12)
   // 查证过的号排在前面：配额只够搜四五次，先搜确定存在的，
-  // 剩下的名额再留给按套路猜的
-  const known = knownAccountsOf(db, school)
+  // 剩下的名额再留给按套路猜的。
+  // 但「记过的号」要过一遍归属校验：旧版把外校号（东林林院团委）、
+  // 中学号（上海市建青实验学校）错记到过目标学校名下，不清掉会一直采它们。
+  const known = knownAccountsOf(db, school).filter((n) => belongsToSchool(n, school))
   const accounts = (input.accounts?.length
     ? input.accounts.map((a) => a.trim()).filter(Boolean)
     : mergeAccounts(known, candidateAccounts(findSchool(school)))
