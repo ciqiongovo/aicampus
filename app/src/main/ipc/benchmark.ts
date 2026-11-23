@@ -171,6 +171,39 @@ export function registerBenchIpc(
     service.prospects(typeof school === 'string' && school.trim() ? school : undefined)
   )
 
+  /**
+   * 深度采集（搜狗）。
+   *
+   * 这个调用会跑很久：一个号翻十页、每篇再开一次浏览器，几分钟到几十分钟都有。
+   * 所以进度必须一路往回推，否则界面上就是一个永远转圈的按钮，
+   * 用户没法判断是在跑还是卡死了。
+   */
+  ipcMain.handle(
+    BENCH_IPC.benchDeepCollect,
+    async (event: unknown, name: unknown, options: unknown) => {
+      if (typeof name !== 'string' || !name.trim()) throw new Error('没指定学校')
+      const opts = (options ?? {}) as { accounts?: unknown; limit?: unknown; perAccount?: unknown }
+      const accounts = Array.isArray(opts.accounts)
+        ? opts.accounts.filter((a): a is string => typeof a === 'string')
+        : undefined
+      const limit = typeof opts.limit === 'number' ? opts.limit : undefined
+      const perAccount = typeof opts.perAccount === 'number' ? opts.perAccount : undefined
+      const sender = (event as { sender?: { send?: (channel: string, payload: unknown) => void } })
+        ?.sender
+      return service.deepCollect(name, { accounts, limit, perAccount }, (p) => {
+        // 把「第几篇 / 共几篇」塞进 note，界面只有一个进度条位置可放
+        const tail = p.articleTotal ? `（第 ${p.articleIndex}/${p.articleTotal} 篇）` : ''
+        sender?.send?.(BENCH_PROGRESS_CHANNEL, {
+          school: name,
+          current: p.current,
+          total: p.total,
+          account: p.account,
+          note: `${p.note}${tail}`
+        })
+      })
+    }
+  )
+
   ipcMain.handle(BENCH_IPC.benchSeedImport, (_e, school: unknown) =>
     service.seedImport(typeof school === 'string' && school.trim() ? school : undefined)
   )

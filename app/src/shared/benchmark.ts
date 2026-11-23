@@ -33,6 +33,8 @@ export const BENCH_IPC = {
   benchSchoolHome: 'bench:school-home',
   benchSchoolCandidates: 'bench:school-candidates',
   benchDiscover: 'bench:discover',
+  /** 搜狗深度采集：一个号翻到底，正文当场入库 */
+  benchDeepCollect: 'bench:deep-collect',
   benchProspects: 'bench:prospects',
   benchSeedImport: 'bench:seed-import',
   benchHomeCompare: 'bench:home-compare',
@@ -611,6 +613,17 @@ export interface BenchApi {
    * 每搜一个账号之间会停顿，所以这个调用可能几十秒才返回，界面要给进度反馈。
    */
   benchDiscover(name: string, accounts?: string[]): Promise<BenchDiscoverResult>
+  /**
+   * 深度采集（搜狗通道）。
+   *
+   * 与 benchDiscover 的区别：这里一个号会翻到搜狗的底（约 100 篇），
+   * 每篇当场打开取正文，采完就是能直接用的数据。慢是必然的——
+   * 每篇要真的渲染一次页面，所以按号限量和按号限篇都留了口子。
+   */
+  benchDeepCollect(
+    name: string,
+    options?: { accounts?: string[]; limit?: number; perAccount?: number }
+  ): Promise<BenchDiscoverResult & { fetched: number }>
   benchProspects(school?: string): Promise<BenchProspectInfo[]>
   /** 导入内置样本链接（随安装包带的一批已知可用链接），按学校过滤 */
   benchSeedImport(school?: string): Promise<BenchImportResult>

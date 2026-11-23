@@ -9,6 +9,7 @@ import {
   Input,
   Modal,
   Progress,
+  Radio,
   Select,
   Space,
   Switch,
@@ -121,6 +122,12 @@ function BenchmarkPage(): JSX.Element {
   const [importSchool, setImportSchool] = useState('')
   /** 「采集范围」说明。负责人问过这个，写在聊天里没用，得在产品里能查到 */
   const [scopeOpen, setScopeOpen] = useState(false)
+  /** 批量深采的配置弹窗 */
+  const [deepBatchOpen, setDeepBatchOpen] = useState(false)
+  /** all = 全部已启用学校；thin = 文章少于 6 篇的 5 所 */
+  const [deepScope, setDeepScope] = useState<'all' | 'thin'>('thin')
+  /** 每个号采几篇。给个上限，免得一不留神跑两个小时 */
+  const [deepPer, setDeepPer] = useState(20)
   const [brief, setBrief] = useState<BenchBrief | null>(null)
   const [picked, setPicked] = useState<number[]>([])
   const [compare, setCompare] = useState<BenchArticleDetail[] | null>(null)
@@ -353,6 +360,96 @@ function BenchmarkPage(): JSX.Element {
       ]
         .filter(Boolean)
         .join('，')
+    })
+  }
+
+  /**
+   * 深度采集：走搜狗，把这个号的收录翻到底，正文当场入库。
+   *
+   * 和「一键采集」的差别说清楚，免得以为只是慢一点的同一个东西：
+   * 一键采集走百度，只把链接找回来，正文要另外点「跑完队列」；
+   * 这里走搜狗，搜到的每一篇当场打开、取正文、落库，采完就能直接用。
+   * 代价是每篇要真的渲染一次页面，一个号几十上百篇要跑很久，只按需用。
+   */
+  const deepCollect = (target: BenchSchoolInfo): void => {
+    if (busy) {
+      message.info('上一个动作还没跑完，等它结束再点')
+      return
+    }
+    setProgress({ school: target.name, current: 0, total: 0, account: '', note: '准备中（搜狗）' })
+    void run(`deep:${target.name}`, async () => {
+      // 两个号、每号 20 篇：一次点下去约五六分钟。
+      // 想一次采更多走「批量深采」，那里能选范围和篇数，也能挂着跑多所。
+      const r = await window.api.benchDeepCollect(target.name, { limit: 2, perAccount: 20 })
+      if (r.blocked) {
+        message.warning(r.message)
+        return ''
+      }
+      if (!r.accepted) {
+        message.info(r.message)
+        return ''
+      }
+      return `${target.name}：${r.message}`
+    })
+  }
+
+  /**
+   * 批量深采：一次把多所学校挂机跑完。
+   *
+   * 学长要的是「一次性把各校三年内的文章都扒到本地」。
+   * 这件事不可能一键瞬时完成——每篇都要真的渲染一次页面——
+   * 但可以「点一次、挂着不管」。所以这里做的是排队：
+   * 逐所、逐号、逐篇跑，中途撞验证就停下来告诉你，不硬撑。
+   *
+   * 不放在主进程：和批量补采同理由，串行调用现成的深采接口就能继承
+   * 那套节流与熔断，再写一条批量通道等于把同一套保护复制一遍。
+   */
+  const runDeepBatch = (): void => {
+    if (busy) {
+      message.info('上一个动作还没跑完，等它结束再点')
+      return
+    }
+    const targets =
+      deepScope === 'all'
+        ? schoolList.filter((s) => s.enabled)
+        : schoolList
+            .filter((s) => s.articleCount < 6)
+            .sort((a, b) => a.articleCount - b.articleCount || a.name.localeCompare(b.name))
+            .slice(0, 5)
+    if (!targets.length) {
+      message.info('没有要补的学校：每所都已经有文章了')
+      return
+    }
+    setDeepBatchOpen(false)
+
+    void run('deepbatch', async () => {
+      const gained: string[] = []
+      let articles = 0
+      let stop = ''
+      for (const [i, t] of targets.entries()) {
+        setBatchInfo({ i: i + 1, total: targets.length })
+        try {
+          const r = await window.api.benchDeepCollect(t.name, { limit: 1, perAccount: deepPer })
+          if (r.blocked) {
+            stop = r.message
+            break
+          }
+          if (r.accepted) {
+            gained.push(`${t.name} +${r.accepted}`)
+            articles += r.accepted
+          }
+        } catch {
+          // 单所失败不该让整轮停下：可能只是这个号名对不上，下一所照样跑
+        }
+      }
+      setBatchInfo(null)
+      if (stop) {
+        return `跑到 ${gained.length + 1} 所被拦下（${stop}）。已入库 ${articles} 篇：${
+          gained.join('、') || '无'
+        }。过半小时再点一次，会接着没跑完的往下跑`
+      }
+      if (!articles) return `这 ${targets.length} 所都没采到新文章，多半是号名对不上，点学校卡片上的「账号」改一下`
+      return `跑完 ${targets.length} 所，新入库 ${articles} 篇正文：${gained.join('、')}`
     })
   }
 
@@ -801,6 +898,7 @@ function BenchmarkPage(): JSX.Element {
   ]
 
   const discoveringSchool = busy.startsWith('discover:') ? busy.slice('discover:'.length) : ''
+  const deepSchool = busy.startsWith('deep:') ? busy.slice('deep:'.length) : ''
 
   /**
    * 第二步按钮旁边的一句话。
@@ -909,7 +1007,7 @@ function BenchmarkPage(): JSX.Element {
           </span>
         </div>
 
-        {busy.startsWith('discover') ? progressBar : null}
+        {busy.startsWith('discover') || busy.startsWith('deep') ? progressBar : null}
 
         <div className="bench-schools">
           {visibleSchools.map((s) => (
@@ -947,6 +1045,17 @@ function BenchmarkPage(): JSX.Element {
                 <Button size="small" type="text" onClick={() => openAccounts(s)}>
                   账号
                 </Button>
+                <Tooltip title="走搜狗，把这个号被收录的文章翻到底（最多约 100 篇），每篇当场取正文。慢，但采完不用再点「跑完队列」">
+                  <Button
+                    size="small"
+                    type="text"
+                    loading={deepSchool === s.name}
+                    disabled={!!busy && deepSchool !== s.name}
+                    onClick={() => deepCollect(s)}
+                  >
+                    深采
+                  </Button>
+                </Tooltip>
                 {!s.isHome ? (
                   <Tooltip title="把本校改成这一所：简报里会多出「本校基准」一节">
                     <Button
@@ -978,6 +1087,17 @@ function BenchmarkPage(): JSX.Element {
               onClick={discoverBatch}
             >
               补齐最缺的 5 所
+            </Button>
+          </Tooltip>
+          <Tooltip title="走搜狗，对多所学校依次深采：一个号翻到底、每篇当场取正文。点一次挂机跑，中途撞验证会自动停">
+            <Button
+              size="small"
+              icon={<CloudDownloadOutlined />}
+              loading={busy === 'deepbatch'}
+              disabled={!!busy && busy !== 'deepbatch'}
+              onClick={() => setDeepBatchOpen(true)}
+            >
+              批量深采
             </Button>
           </Tooltip>
           <Tooltip title="装好就有点东西可看。这批链接是随软件带的，不用联网去搜">
@@ -1682,16 +1802,73 @@ function BenchmarkPage(): JSX.Element {
           点一次「找文章」查其中 5 个，查到的号会记住，下次优先查。
         </Typography.Paragraph>
         <Typography.Paragraph>
-          <b>文章</b>：只拿搜索引擎（百度）已经收录的公开推文。一个号一年发几十条，被收录的常常只有个位数，
+          <b>检索源</b>：两个，百度 + 搜狗微信搜索，取并集。
+          「找文章」走百度，快；「深采」走搜狗，同一个号能翻到近百条，而且结果自带号名和精确发布时间。
+          两套索引收的东西不一样，只用一家会漏掉另一家有的。
+        </Typography.Paragraph>
+        <Typography.Paragraph>
+          <b>文章</b>：只拿搜索引擎已经收录的公开推文。一个号一年发几十条，被收录的常常只有个位数到几十条，
           所以这里看到的是「能搜到的那些」，不是这个号的全部历史。
+          搜狗单个号最多 10 页约 100 条，这是它的硬顶，翻不出更多。
         </Typography.Paragraph>
         <Typography.Paragraph>
           <b>正文</b>：逐篇打开文章页取正文，每篇间隔 2.5–5.5 秒，一次跑 20 篇；连续撞上 3 次人机验证会自动停手，
-          过二三十分钟再跑。慢是为了不把整批都撞死。
+          过二三十分钟再跑。慢是为了不把整批都撞死。「深采」是每篇当场取正文，所以更慢。
         </Typography.Paragraph>
         <Typography.Paragraph style={{ marginBottom: 0 }}>
-          <b>要全量历史</b>：用 wechatDownload 这类工具把某个号的历史导出成 CSV / Excel，再到「导入链接」里选那份文件。
-          导入后列表立刻能看到标题和时间，只是类型、地点这些字段要等「采集正文」和「抽字段」之后才有。
+          <b>要全量历史</b>：搜索引擎的索引本质上到不了「这个号发过的每一篇」。
+          要真的全量，用 wechatDownload 这类带登录态的工具把历史导出成 CSV / Excel，
+          再到「导入链接」里选那份文件，然后点「跑完队列」挂机采正文。
+          导入后列表立刻能看到标题和时间，只是类型、地点这些字段要等抽完才有。
+        </Typography.Paragraph>
+      </Modal>
+
+      {/* ---------- 批量深采 ---------- */}
+      <Modal
+        open={deepBatchOpen}
+        title="批量深采：挂着跑，跑完就有正文"
+        okText="开始"
+        cancelText="取消"
+        onOk={runDeepBatch}
+        onCancel={() => setDeepBatchOpen(false)}
+        width={520}
+      >
+        <Typography.Paragraph type="secondary">
+          走搜狗，一个号把收录的文章翻到底，每篇当场打开取正文——采完直接在列表里能用，
+          不用再点「跑完队列」。代价是慢：每篇要真的渲染一次页面，约 8 秒。
+        </Typography.Paragraph>
+        <Typography.Paragraph>
+          <b>范围</b>
+        </Typography.Paragraph>
+        <Radio.Group
+          value={deepScope}
+          onChange={(e) => setDeepScope(e.target.value === 'all' ? 'all' : 'thin')}
+          style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}
+        >
+          <Radio value="thin">
+            先补最缺的 5 所（文章少于 6 篇的学校，约 15–25 分钟）
+          </Radio>
+          <Radio value="all">
+            全部已启用的学校（{schoolList.filter((s) => s.enabled).length} 所，可能一两小时）
+          </Radio>
+        </Radio.Group>
+        <div className="bench-import-row">
+          <span className="bench-field-label">每个号采</span>
+          <Select
+            style={{ flex: 1 }}
+            value={deepPer}
+            onChange={setDeepPer}
+            options={[
+              { value: 10, label: '10 篇（约 2 分钟，先试效果）' },
+              { value: 20, label: '20 篇（约 4 分钟）' },
+              { value: 50, label: '50 篇（约 8 分钟）' },
+              { value: 100, label: '全翻（最多约 100 篇，15 分钟以上）' }
+            ]}
+          />
+        </div>
+        <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0, fontSize: 12 }}>
+          跑的过程中别关窗口。撞上微信验证会自动停，过半小时再点一次会接着往下跑，
+          已经入库的不会重复采。
         </Typography.Paragraph>
       </Modal>
 

@@ -57,6 +57,10 @@
     "src/main/services/benchmark/rule-extract.ts",
     "src/main/services/benchmark/brief.ts",
     "src/main/services/benchmark/report.ts",
+    "src/main/services/benchmark/page.ts",
+    "src/main/services/benchmark/render-edge.ts",
+    "src/main/services/benchmark/sogou.ts",
+    "src/main/services/benchmark/discover-sogou.ts",
     "src/renderer/src/modules/keywordCloudLayout.ts"
   ]
 }

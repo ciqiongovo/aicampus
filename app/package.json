@@ -1,6 +1,6 @@
 {
   "name": "zhishu",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "知枢 — 高校公众号活动对标与决策支持",
   "main": "./out/main/index.js",
   "private": true,
@@ -24,7 +24,7 @@
     "test:db": "tsc -p tsconfig.test.json && node tests/db.test.cjs",
     "test:mail": "tsc -p tsconfig.test.json && node tests/mail.test.cjs",
     "test:ai": "tsc -p tsconfig.test.json && node tests/ai.test.cjs",
-    "test": "tsc -p tsconfig.test.json && node tests/db.test.cjs && node tests/benchmark-compare.test.cjs && node tests/benchmark-import.test.cjs && node tests/benchmark-import-db.test.cjs && node tests/benchmark-offtopic.test.cjs && node tests/mail.test.cjs && node tests/mail-tags.test.cjs && node tests/mail-classify.test.cjs && node tests/custom-mail-tags.test.cjs && node tests/ai.test.cjs && node tests/items.test.cjs && node tests/panel-recommend.test.cjs && node --test tests/panel-inbox.test.cjs tests/batch-management.test.cjs tests/schedule-dedupe.test.cjs tests/panel-renderer-lag.test.cjs && node tests/mail-view.test.cjs && node tests/daily.test.cjs && node tests/counterRec.test.cjs && node tests/zhihu.test.cjs && node --test tests/todo.test.cjs tests/reminder-scheduler.test.cjs tests/mail-security.test.cjs tests/oauth.test.cjs && node --test tests/workspace.test.cjs tests/workspace-security.test.cjs tests/rule-engine.test.cjs tests/agent-model.test.cjs tests/cognition.test.cjs tests/ai-connection.test.cjs tests/db-upgrade.test.cjs && node tests/im.test.cjs && node tests/im-wechat.test.cjs && node tests/im-qce.test.cjs && node tests/im-qce-runtime.test.cjs && node --test tests/keyword-cloud.test.cjs",
+    "test": "tsc -p tsconfig.test.json && node tests/db.test.cjs && node tests/benchmark-compare.test.cjs && node tests/benchmark-import.test.cjs && node tests/benchmark-import-db.test.cjs && node tests/sogou.test.cjs && node tests/benchmark-offtopic.test.cjs && node tests/mail.test.cjs && node tests/mail-tags.test.cjs && node tests/mail-classify.test.cjs && node tests/custom-mail-tags.test.cjs && node tests/ai.test.cjs && node tests/items.test.cjs && node tests/panel-recommend.test.cjs && node --test tests/panel-inbox.test.cjs tests/batch-management.test.cjs tests/schedule-dedupe.test.cjs tests/panel-renderer-lag.test.cjs && node tests/mail-view.test.cjs && node tests/daily.test.cjs && node tests/counterRec.test.cjs && node tests/zhihu.test.cjs && node --test tests/todo.test.cjs tests/reminder-scheduler.test.cjs tests/mail-security.test.cjs tests/oauth.test.cjs && node --test tests/workspace.test.cjs tests/workspace-security.test.cjs tests/rule-engine.test.cjs tests/agent-model.test.cjs tests/cognition.test.cjs tests/ai-connection.test.cjs tests/db-upgrade.test.cjs && node tests/im.test.cjs && node tests/im-wechat.test.cjs && node tests/im-qce.test.cjs && node tests/im-qce-runtime.test.cjs && node --test tests/keyword-cloud.test.cjs",
     "test:classify": "tsc -p tsconfig.test.json && node tests/mail-classify.test.cjs",
     "test:items": "tsc -p tsconfig.test.json && node tests/items.test.cjs",
     "test:panel": "tsc -p tsconfig.test.json && node tests/panel-recommend.test.cjs && node --test tests/panel-inbox.test.cjs tests/batch-management.test.cjs tests/schedule-dedupe.test.cjs tests/panel-renderer-lag.test.cjs",

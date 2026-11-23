@@ -48,6 +48,8 @@ import { VERIFY_BLOCKED } from './page'
 import { extractActivity } from './extractor'
 import { discoverSchool, DEFAULT_ACCOUNT_LIMIT } from './discover'
 import type { DiscoverProgress } from './discover'
+import { deepCollectSchool } from './discover-sogou'
+import type { DeepProgress } from './discover-sogou'
 import { readSeeds } from './seeds'
 
 /** 抓取一篇的最长等待：超过就当这次没拿到，下次重试 */
@@ -216,6 +218,36 @@ export class BenchmarkService {
 
   prospects(school?: string): BenchProspectInfo[] {
     return dao.listProspects(this.db, school)
+  }
+
+  /**
+   * 深度采集：走搜狗，一个号翻到底，正文当场入库。
+   *
+   * 和 discover 的分工要分清：
+   * - discover 走百度，快、省、只负责把链接找回来，正文留到后面批量跑；
+   * - 这里走搜狗，慢（每篇开一次浏览器），但采完就能直接用，不用再点第二次。
+   *
+   * 两条通道存在的理由不是「哪个更好」，而是两套索引各不相同：
+   * 百度收了的搜狗未必收，反之亦然，并集才接近「这个号发过什么」。
+   */
+  async deepCollect(
+    name: string,
+    options: { accounts?: string[]; limit?: number; perAccount?: number } = {},
+    onProgress?: (p: DeepProgress) => void
+  ): Promise<BenchDiscoverResult & { fetched: number }> {
+    if (this.fetching) throw new Error('正在采正文，等这一轮跑完再开始')
+    this.fetching = true
+    try {
+      return await deepCollectSchool(this.db, {
+        school: name,
+        accounts: options.accounts,
+        limit: options.limit,
+        perAccount: options.perAccount,
+        onProgress
+      })
+    } finally {
+      this.fetching = false
+    }
   }
 
   /**
